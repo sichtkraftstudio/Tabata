@@ -114,13 +114,8 @@ function renderStart() {
     hero = `<article class="hero rest"><p class="eyebrow">${T.start.heroRest}</p>${restBody()}</article>`;
   }
 
-  const reached = st.weekDays >= profile.weekGoal, pct = Math.min(100, Math.round((st.weekDays / profile.weekGoal) * 100));
-  const goalChips = Object.keys(T.goals).filter((g) => profile.goals[g]).map((g) => `<span class="pill">${T.goals[g]}</span>`).join('');
-  const goal = `<section class="card goal${reached ? ' reached' : ''}">
-    <div class="goal-head"><strong>${T.start.weekGoal}</strong><span>${T.start.goalOf(st.weekDays, profile.weekGoal)}</span></div>
-    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${profile.weekGoal}" aria-valuenow="${Math.min(st.weekDays, profile.weekGoal)}"><i style="width:${pct}%"></i></div>
-    <p class="muted">${reached ? T.start.goalReached : T.start.goalLeft(profile.weekGoal - st.weekDays)}</p>
-    ${goalChips ? `<div class="pills">${goalChips}</div>` : ''}</section>`;
+  const reached = st.weekDays >= profile.weekGoal;
+  const goal = `<p class="muted">${reached ? T.start.goalReached : T.start.goalOf(st.weekDays, profile.weekGoal)}</p>`;
 
   const strip = weekDates().map((d, i) => {
     const k = dayKey(d), isRest = plan[i].type === 'rest';
@@ -129,7 +124,7 @@ function renderStart() {
       <span>${T.daysShort[i]}</span><b>${d.getDate()}</b><i>${done[k] ? ICON.check : isRest ? ICON.moon : ''}</i></a>`;
   }).join('');
 
-  const recent = log.map((e, i) => [e, i]).slice(-5).reverse();
+  const recent = log.map((e, i) => [e, i]).slice(-3).reverse();
   const recentHtml = recent.length
     ? `<ul class="recents">${recent.map(([e, i]) => `<li><button class="recent" data-act="log" data-i="${i}">
         <span class="r-date">${dateLabel(e.key)}</span>
@@ -137,22 +132,12 @@ function renderStart() {
         <span class="r-dur">${T.min(mins(e.secs))}</span></button></li>`).join('')}</ul>`
     : `<p class="empty">${T.start.noRecent}</p>`;
 
-  const tiles = Object.entries(GROUPS).map(([g, label]) => {
-    const rep = EXERCISES.find((e) => e.group === g && available(e)) || EXERCISES.find((e) => e.group === g);
-    return `<button class="tile" data-act="area" data-g="${g}"><span class="illu">${illo(rep)}</span><strong>${label}</strong></button>`;
-  }).join('');
-
   view.innerHTML = `
     <header class="hello"><p class="muted">${now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       <h2>${T.greeting(now.getHours())}${name ? `, ${esc(name)}` : ''}</h2></header>
-    ${hero}${goal}
-    <section><h3 class="sec">${T.start.week}</h3><div class="strip">${strip}</div></section>
-    <section><h3 class="sec">${T.start.recent}</h3>${recentHtml}</section>
-    <section><h3 class="sec">${T.start.areas}</h3><div class="tiles">${tiles}</div></section>
-    <section><h3 class="sec">${T.start.progress}</h3><div class="stats">
-      <div class="stat"><b>${st.current}</b><span>${T.stat.streak}</span></div>
-      <div class="stat"><b>${st.weekDays}/${profile.weekGoal}</b><span>${T.stat.weekWorkouts}</span></div>
-      <div class="stat"><b>${st.totalMinutes}</b><span>${T.stat.totalMinutes}</span></div></div></section>`;
+    ${hero}
+    <section><h3 class="sec">${T.start.week}</h3><div class="strip">${strip}</div>${goal}</section>
+    <section><h3 class="sec">${T.start.recent}</h3>${recentHtml}</section>`;
   return { title: T.tabs.start };
 }
 
@@ -182,17 +167,8 @@ function trainWorkouts() {
       isDone: Boolean(done[dayKey(dates[i])]), isToday: i === today,
     });
   }).join('');
-  const quick = Object.keys(GROUPS).map((g) => {
-    const list = quickList(g);
-    if (!list.length) return `<article class="day"><h3>${T.training.only(GROUPS[g])}</h3><p class="muted">${T.training.noEquip}</p></article>`;
-    return workoutCard({
-      title: T.training.only(GROUPS[g]), sub: `${T.exercises(list.length)} · ${T.minutes(mins(workoutSecs(list.length)))}`, list,
-      btn: `<button class="btn primary wide" data-act="start-quick" data-g="${g}">${T.start.startBtn}</button>`,
-    });
-  }).join('');
   return `<h3 class="sec">${T.training.planDays(esc(planName()))}</h3>
-    ${days ? `<div class="days">${days}</div>` : `<p class="empty">${T.training.noDays}</p>`}
-    <h3 class="sec">${T.training.quick}</h3><p class="muted">${T.training.quickHint(QUICK_COUNT)}</p><div class="days">${quick}</div>`;
+    ${days ? `<div class="days">${days}</div>` : `<p class="empty">${T.training.noDays}</p>`}`;
 }
 
 const libResults = () => {
@@ -246,11 +222,6 @@ function renderPlanTab(sub) {
   }).join('');
 
   view.innerHTML = `
-    <section class="panel"><h3>${T.plan.reminder}</h3>
-      <label class="row"><span>${T.plan.reminderTime}</span>
-        <span class="num-input"><input type="time" value="${settings.reminder}" data-chg="reminder" aria-label="${T.plan.reminderTime}">
-        ${settings.reminder ? `<button class="btn ghost" data-act="reminder-clear">${T.plan.reminderClear}</button>` : ''}</span></label>
-      <p class="muted small">${T.plan.reminderNote}</p></section>
     ${dupBox}
     <div class="days">${cards}</div>
     <button class="btn ghost wide shuffle" data-act="shuffle">${T.plans.shuffle}</button>`;
@@ -390,8 +361,7 @@ function renderProgress() {
   view.innerHTML = `
     <section><h3 class="sec">${T.prog.records}</h3><div class="stats two">
       ${rec(T.stat.streak, st.current)}${rec(T.prog.longestStreak, st.longest)}
-      ${rec(T.prog.bestWeek, st.bestWeek)}${rec(T.prog.totalWorkouts, st.total)}
-      ${rec(T.stat.totalMinutes, st.totalMinutes)}${rec(T.prog.weekMinutes, st.weekMinutes)}</div></section>
+      ${rec(T.prog.totalWorkouts, st.total)}${rec(T.stat.totalMinutes, st.totalMinutes)}</div></section>
     <section class="panel chartbox"><h3>${T.prog.chart}</h3>
       <div class="chips">${chip('metric', 'workouts', T.prog.workouts)}${chip('metric', 'minutes', T.prog.minutes)}
         ${chip('span', 'week', T.prog.weeks)}${chip('span', 'month', T.prog.months)}</div>
@@ -423,24 +393,24 @@ function renderProfile() {
         `<option value="${n}"${n === profile.weekGoal ? ' selected' : ''}>${T.profile.daysPerWeek(n)}</option>`).join('')}</select></label></section>
     <section class="panel"><h3>${T.profile.equipment}</h3><p class="muted small">${T.profile.equipHint}</p>
       ${Object.entries(EQUIPMENT).map(([k, l]) => toggle(`data-chg="equip" data-k="${k}"`, settings.equipment[k] !== false, Illu.icon(k) + l)).join('')}</section>
-    <section class="panel"><h3>${T.profile.timer}</h3>
-      ${numInput('work', T.profile.work, 5, 120, 's')}${numInput('rest', T.profile.rest, 0, 120, 's')}
-      ${numInput('rounds', T.profile.rounds, 1, 20, '')}${numInput('restBetween', T.profile.restBetween, 0, 300, 's')}
-      <p class="muted small">${T.profile.timerNote(mins(workoutSecs(8)))}</p></section>
     <section class="panel"><h3>${T.profile.sound}</h3>
       ${toggle('data-chg="flag" data-k="sound"', settings.sound, T.profile.beeps)}
       ${toggle('data-chg="flag" data-k="voice"', settings.voice, T.profile.voice)}
       ${toggle('data-chg="flag" data-k="keepAwake"', settings.keepAwake, T.profile.keepAwake)}</section>
-    <section class="panel"><h3>${T.profile.days}</h3>
-      ${plan.map((d, i) => `<label class="row"><span>${T.days[i]}</span><select data-chg="daytype" data-i="${i}">
-        <option value="training"${d.type === 'training' ? ' selected' : ''}>${T.plan.training}</option>
-        <option value="rest"${d.type === 'rest' ? ' selected' : ''}>${T.rest.short}</option></select></label>`).join('')}</section>
-    <section class="panel stack"><h3>${T.profile.data}</h3><p class="muted small">${T.profile.dataHint}</p>
+    <details class="panel"><summary>${T.profile.timer}</summary>
+      ${numInput('work', T.profile.work, 5, 120, 's')}${numInput('rest', T.profile.rest, 0, 120, 's')}
+      ${numInput('rounds', T.profile.rounds, 1, 20, '')}${numInput('restBetween', T.profile.restBetween, 0, 300, 's')}
+      <p class="muted small">${T.profile.timerNote(mins(workoutSecs(8)))}</p>
+      <label class="row"><span>${T.plan.reminderTime}</span>
+        <span class="num-input"><input type="time" value="${settings.reminder}" data-chg="reminder" aria-label="${T.plan.reminderTime}">
+        ${settings.reminder ? `<button class="btn ghost" data-act="reminder-clear">${T.plan.reminderClear}</button>` : ''}</span></label>
+      <p class="muted small">${T.plan.reminderNote}</p></details>
+    <details class="panel stack"><summary>${T.profile.data}</summary><p class="muted small">${T.profile.dataHint}</p>
       <button class="btn" data-act="export">${T.profile.export}</button>
       <label class="btn file">${T.profile.import}<input type="file" accept=".json,application/json" data-chg="import"></label>
       <button class="btn ghost" data-act="reset-plan">${T.profile.resetPlan}</button>
       <button class="btn danger" data-act="reset-progress">${T.profile.resetProgress}</button>
-      <button class="btn danger" data-act="reset-all">${T.profile.resetAll}</button></section>
+      <button class="btn danger" data-act="reset-all">${T.profile.resetAll}</button></details>
     <p class="muted small center">${T.profile.version(SCHEMA)}</p>`;
   return { title: T.tabs.profil };
 }

@@ -299,6 +299,9 @@ a.icon-btn { display: grid; place-items: center; }
 .btn.file input { position: absolute; inset: 0; opacity: 0; font-size: 0; cursor: pointer; }
 details summary { min-height: 48px; display: flex; align-items: center; color: var(--accent); font-weight: 650; cursor: pointer; }
 details[open] summary { margin-bottom: 4px; }
+details.panel { padding-bottom: 4px; }
+details.panel > summary { color: var(--muted); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.06em; }
+details.panel[open] { padding-bottom: 12px; }
 .icons { display: inline-flex; gap: 6px; color: #fdba74; vertical-align: middle; }
 .eqrow { display: flex; }
 .hint { margin: 0; color: var(--accent-2); font-weight: 650; text-align: center; }
@@ -332,11 +335,7 @@ details[open] summary { margin-bottom: 4px; }
 .thumbs { display: flex; align-items: center; gap: 8px; }
 .thumbs .illu.thumb { width: clamp(48px, 15vw, 64px); }
 .thumbs .more { min-width: 36px; text-align: center; color: var(--muted); font-weight: 700; }
-.goal { margin-top: 14px; }
-.goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.goal-head span { color: var(--muted); }
-.goal p { margin: 0; }
-.goal.reached .bar i { background: var(--accent); }
+.strip + .muted { margin: 10px 0 0; }
 
 .strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .wd {
@@ -362,13 +361,6 @@ details[open] summary { margin-bottom: 4px; }
 .r-main { min-width: 0; display: flex; flex-direction: column; }
 .r-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .r-dur { color: var(--muted); font-variant-numeric: tabular-nums; }
-
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
-.tile {
-  min-height: 48px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-}
-.tile .illu { width: 100%; }
 
 /* ---------- Training ---------- */
 .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }

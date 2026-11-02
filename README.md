@@ -67,7 +67,7 @@ Fehlt die Datei, zeigt die App automatisch wieder die SVG-Illustration. Bilder w
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
-**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v2'` hochzählen (`tabata-v3` …).
+**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v4'` hochzählen (`tabata-v5` …).
 
 **Aktualisierte Version auf iPhone und iPad laden:**
 1. Dateien hochladen und ca. 1 Minute warten.

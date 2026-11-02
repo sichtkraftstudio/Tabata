@@ -32,14 +32,12 @@ const T = {
     goalReached: 'Wochenziel erreicht. Stark!',
     goalLeft: (n) => (n === 1 ? 'Noch 1 Trainingstag bis zum Ziel.' : `Noch ${n} Trainingstage bis zum Ziel.`),
     open: 'offen', week: 'Deine Woche', recent: 'Zuletzt trainiert', noRecent: 'Noch kein Training abgeschlossen. Leg heute los!',
-    areas: 'Schnellstart nach Bereich', progress: 'Dein Fortschritt',
   },
 
   training: {
     segLabel: 'Trainingsbereiche', segs: { workouts: 'Workouts', uebungen: 'Übungen', plaene: 'Pläne' },
     planDays: (name) => `Plan: ${name}`, noDays: 'Dein Plan hat keine Trainingstage.',
-    quick: 'Kurz-Workouts', quickHint: (n) => `Je ${n} Übungen aus einem Bereich, jeden Tag neu zusammengestellt.`,
-    only: (g) => `Nur ${g}`, noEquip: 'Für diesen Bereich ist kein Equipment verfügbar.', allEx: 'Alle Übungen anzeigen',
+    allEx: 'Alle Übungen anzeigen',
   },
 
   lib: {
@@ -107,10 +105,6 @@ const T = {
     version: (v) => `Tabata-App · Datenversion ${v}`,
   },
 
-  area: {
-    startQuick: (n, m) => `Kurzeinheit starten (${n} Übungen, ca. ${m} Min)`, showList: 'Übungen ansehen',
-    title: (g) => `Bereich ${g}`,
-  },
 
   data: {
     importConfirm: 'Importierte Daten ersetzen alle aktuellen Daten auf diesem Gerät. Fortfahren?',
@@ -128,7 +122,6 @@ const T = {
   },
   prompt: { newPlan: 'Name für den neuen Plan:', rename: 'Neuer Name für den Plan:' },
   newPlanName: (n) => `Plan ${n}`,
-  quickTitle: (g) => `Kurzeinheit ${g}`,
 
   phase: { prep: 'Bereit machen', work: 'Belastung', rest: 'Pause', break: 'Pause · Als Nächstes' },
   wo: {

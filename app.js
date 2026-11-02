@@ -4,7 +4,6 @@
 
 const PREP = 10;        // Sekunden „Bereit machen" vor der ersten Übung
 const SCHEMA = 2;       // Version der gespeicherten Daten (siehe migrate())
-const QUICK_COUNT = 4;  // Übungen pro Kurz-Workout
 const DEFAULT_SETTINGS = {
   work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false, keepAwake: true, reminder: '',
   equipment: Object.fromEntries(Object.keys(EQUIPMENT).map((k) => [k, true])),
@@ -264,15 +263,6 @@ function switchPlan(id) {
   store.set('plan', plan);
 }
 
-// ---------- Kurz-Workouts (nur ein Bereich) ----------
-const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-/** Stabile Auswahl pro Tag und Bereich, damit Karte und Start dieselben Übungen zeigen. */
-function quickList(group) {
-  const rnd = mulberry32([...(dayKey(new Date()) + group)].reduce((s, c) => (s * 31 + c.charCodeAt(0)) | 0, 7));
-  return EXERCISES.filter((e) => e.group === group && available(e))
-    .map((e) => [rnd(), e]).sort((a, b) => a[0] - b[0]).slice(0, QUICK_COUNT).map((x) => x[1]);
-}
-
 // ---------- Dialoge (Übungsdetails, Verlauf, Bereich) ----------
 function showSheet(html) {
   $('#sheet-body').innerHTML = html;
@@ -321,14 +311,6 @@ function openLog(i) {
       <button class="btn primary wide" data-act="repeat" data-i="${i}">${T.again}</button>` : ''}`);
 }
 
-function openArea(g) {
-  const list = quickList(g);
-  showSheet(`<h2>${GROUPS[g]}</h2>
-    ${list.length ? `<button class="btn primary big wide" data-act="start-quick" data-g="${g}">${T.area.startQuick(list.length, mins(workoutSecs(list.length)))}</button>`
-      : `<p class="muted">${T.training.noEquip}</p>`}
-    <a class="btn wide" href="#/training/uebungen/${g}" data-act="close-sheet">${T.area.showList}</a>`);
-}
-
 // ---------- Daten: Export, Import, Zurücksetzen ----------
 async function exportData() {
   const data = {};
@@ -367,10 +349,8 @@ function resetAll() { store.keys().forEach((k) => localStorage.removeItem(k)); l
 const ACT = {
   ex: (el) => openSheet(el.dataset.id),
   log: (el) => openLog(+el.dataset.i),
-  area: (el) => openArea(el.dataset.g),
   'close-sheet': () => closeDialogs(),
   'start-day': (el) => { closeDialogs(); startDay(+el.dataset.i); },
-  'start-quick': (el) => { closeDialogs(); startQuick(el.dataset.g); },
   repeat: (el) => {
     const e = log[+el.dataset.i];
     closeDialogs();
@@ -555,11 +535,6 @@ function buildPhases(list) {
 
 /** Trainingstag aus dem Plan starten. */
 const startDay = (i) => startWorkout(resolveDay(plan[i]).map((r) => r.ex), { day: i, title: T.days[i], label: plan[i].focus, kind: 'plan' });
-/** Kurz-Workout für einen Bereich starten. */
-function startQuick(group) {
-  const list = quickList(group), label = T.training.only(GROUPS[group]);
-  if (list.length) startWorkout(list, { day: weekday(new Date()), title: T.quickTitle(GROUPS[group]), label, kind: 'quick' });
-}
 
 /** meta: { day, title, label, kind } – label landet im Verlauf. */
 function startWorkout(list, meta) {
