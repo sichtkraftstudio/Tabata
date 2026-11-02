@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tabata">
+  <meta name="description" content="Persönlicher Tabata-Wochenplan für Oberkörper und Bauch">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="style.css">
+  <title>Tabata Woche</title>
+</head>
+<body>
+  <header class="topbar"><h1 id="title">Wochenplan</h1></header>
+
+  <main id="view" aria-live="polite"></main>
+
+  <nav class="tabbar" aria-label="Navigation">
+    <a href="#woche">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Woche
+    </a>
+    <a href="#bibliothek">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>Übungen
+    </a>
+    <a href="#einstellungen">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Einstellungen
+    </a>
+  </nav>
+
+  <!-- Trainingsansicht (Vollbild) -->
+  <section id="workout" class="workout" hidden>
+    <div class="wo-top">
+      <button class="icon-btn" id="wo-close" aria-label="Training abbrechen">✕</button>
+      <div class="wo-meta"><span id="wo-ex"></span><span id="wo-round"></span></div>
+      <span class="icon-btn-spacer"></span>
+    </div>
+    <div class="wo-body">
+      <div class="wo-figure">
+        <div id="wo-phase" class="wo-phase"></div>
+        <div id="wo-illu" class="illu big"></div>
+      </div>
+      <div class="wo-info">
+        <h2 id="wo-name"></h2>
+        <p id="wo-desc" class="muted"></p>
+        <p id="wo-tip" class="wo-tip"></p>
+        <div id="wo-equip" class="equip-list"></div>
+        <div class="ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="54" class="ring-bg"/>
+            <circle cx="60" cy="60" r="54" class="ring-fg" id="wo-ring"/>
+          </svg>
+          <div class="ring-text" id="wo-time" role="timer"></div>
+        </div>
+        <div class="wo-controls">
+          <button class="btn ghost" id="wo-abort">Abbrechen</button>
+          <button class="btn primary big" id="wo-toggle">Start</button>
+          <button class="btn ghost" id="wo-skip">Überspringen</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Übungsdetails -->
+  <dialog id="sheet" class="sheet">
+    <div class="sheet-inner">
+      <button class="icon-btn sheet-close" aria-label="Schließen">✕</button>
+      <div id="sheet-body"></div>
+    </div>
+  </dialog>
+
+  <script src="exercises.js"></script>
+  <script src="illustrations.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
