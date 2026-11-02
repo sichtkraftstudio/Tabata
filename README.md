@@ -4,9 +4,11 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 
 | Datei | Inhalt |
 |---|---|
-| `index.html` | Grundgerüst, Trainingsansicht, Detail-Dialog |
+| `index.html` | Grundgerüst, Tab-Leiste, Trainingsansicht, Dialoge |
 | `style.css` | Dunkles, mobiles Layout (Safe Areas, Hoch- und Querformat) |
-| `app.js` | Wochenansicht, Timer, Bibliothek, Einstellungen, Fortschritt |
+| `texts.js` | Alle deutschen Texte an einer Stelle |
+| `views.js` | Die fünf Tabs: Start, Training, Wochenplan, Fortschritt, Profil |
+| `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
 | `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, Standard-Wochenplan |
 | `illustrations.js` | Figur-Renderer (Gelenkwinkel → SVG) und Equipment-Icons |
 | `service-worker.js` | Offline-Cache |
@@ -65,4 +67,12 @@ Fehlt die Datei, zeigt die App automatisch wieder die SVG-Illustration. Bilder w
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
-**Updates ausrollen:** Dateien neu hochladen. Die App lädt neue Versionen im Hintergrund und zeigt sie beim nächsten Start. Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v1'` hochzählen (`tabata-v2` …).
+**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v2'` hochzählen (`tabata-v3` …).
+
+**Aktualisierte Version auf iPhone und iPad laden:**
+1. Dateien hochladen und ca. 1 Minute warten.
+2. App vom Home-Bildschirm aus öffnen (mit Internet), komplett schließen (im App-Umschalter nach oben wischen) und noch einmal öffnen. Die neue Version steht dann bereit.
+3. Zeigt sie noch die alte Oberfläche: Seite in Safari öffnen, Adresse neu laden, danach die App neu starten.
+4. Nur im Notfall: App vom Home-Bildschirm löschen und in Safari neu über *Teilen → Zum Home-Bildschirm* hinzufügen. Dabei gehen die lokalen Daten verloren. Sichere sie vorher unter *Profil → Daten exportieren*.
+
+**Daten sichern:** *Profil → Daten exportieren (JSON)* speichert Plan, Verlauf, Profil und Einstellungen als Datei. Mit *Daten importieren* spielst du sie auf einem anderen Gerät wieder ein. Alte Daten aus Version 1 werden beim ersten Start automatisch übernommen.

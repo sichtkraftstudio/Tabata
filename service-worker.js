@@ -4,14 +4,15 @@
  * Eigene Bilder (img/…) landen beim ersten Laden automatisch ebenfalls im Cache.
  * Für ein sauberes Update aller Nutzer: CACHE-Version erhöhen.
  */
-const CACHE = 'tabata-v1';
+const CACHE = 'tabata-v2';
 const ASSETS = [
-  './', 'index.html', 'style.css', 'app.js', 'exercises.js', 'illustrations.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'texts.js', 'app.js', 'views.js', 'exercises.js', 'illustrations.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' umgeht den HTTP-Cache des Hosters, damit wirklich die neuen Dateien gespeichert werden
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((a) => new Request(a, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

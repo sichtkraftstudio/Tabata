@@ -1,12 +1,15 @@
-/* app.js – Logik der Tabata-PWA: Ansichten, Timer, Fortschritt, Einstellungen. */
+/* app.js – Kern der Tabata-PWA: Speicher mit Migration, Plan-Logik, Router, Aktionen, Dialoge, Timer.
+ * Die Tabs (Ansichten) liegen in views.js, alle Texte in texts.js. */
 'use strict';
 
-const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-const PREP = 10; // Sekunden „Bereit machen" vor der ersten Übung
+const PREP = 10;        // Sekunden „Bereit machen" vor der ersten Übung
+const SCHEMA = 2;       // Version der gespeicherten Daten (siehe migrate())
+const QUICK_COUNT = 4;  // Übungen pro Kurz-Workout
 const DEFAULT_SETTINGS = {
-  work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false,
+  work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false, keepAwake: true, reminder: '',
   equipment: Object.fromEntries(Object.keys(EQUIPMENT).map((k) => [k, true])),
 };
+const DEFAULT_PROFILE = { name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
 
 const EX = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 const $ = (sel) => document.querySelector(sel);
@@ -21,55 +24,122 @@ const store = {
   set(key, value) {
     try { localStorage.setItem('tabata.' + key, JSON.stringify(value)); } catch { /* privater Modus o. Ä. */ }
   },
+  keys() {
+    try { return Object.keys(localStorage).filter((k) => k.startsWith('tabata.')); } catch { return []; }
+  },
 };
 
-function loadPlan() {
-  const saved = store.get('plan', null);
+/** Prüft einen gespeicherten Wochenplan; ungültige Übungen fliegen raus, kaputte Pläne werden durch den Standard ersetzt. */
+function cleanPlan(saved) {
   const valid = Array.isArray(saved) && saved.length === 7 && saved.every((d) => ['training', 'rest'].includes(d?.type));
-  const plan = valid ? saved : structuredClone(DEFAULT_PLAN);
-  plan.forEach((d) => { d.exercises = (d.exercises || []).filter((id) => EX[id]); });
-  return plan;
+  const days = valid ? saved : structuredClone(DEFAULT_PLAN);
+  days.forEach((d) => { d.exercises = (d.exercises || []).filter((id) => EX[id]); });
+  return days;
 }
 
-const saved = store.get('settings', {});
-let settings = { ...DEFAULT_SETTINGS, ...saved, equipment: { ...DEFAULT_SETTINGS.equipment, ...saved.equipment } };
-let plan = loadPlan();
-let done = store.get('done', {});
+/** Datenversion 1 → 2: bestehende Schlüssel (settings, plan, done) bleiben unverändert, neue werden ergänzt. */
+function migrate() {
+  if (store.get('version', 1) >= SCHEMA) return;
+  const days = cleanPlan(store.get('plan', null)), oldDone = store.get('done', {});
+  if (!store.get('plans', null)) {
+    store.set('plans', [{ id: 'p1', name: T.plans.defaultName, days }]);
+    store.set('activePlan', 'p1');
+  }
+  if (!store.get('log', null)) { // v1 kannte nur „erledigt" pro Tag → Verlauf daraus ableiten
+    store.set('log', Object.keys(oldDone).sort().map((key) => {
+      const d = oldDone[key], src = days[d.day] || {};
+      return { key, day: d.day, focus: src.focus || '', secs: d.secs || 0, n: d.count || 1, ex: src.exercises || [], kind: 'plan', migrated: true };
+    }));
+  }
+  if (!store.get('profile', null)) store.set('profile', DEFAULT_PROFILE);
+  store.set('plan', days);
+  store.set('version', SCHEMA);
+}
+migrate();
+
+const savedSettings = store.get('settings', {}), savedProfile = store.get('profile', {});
+let settings = { ...DEFAULT_SETTINGS, ...savedSettings, equipment: { ...DEFAULT_SETTINGS.equipment, ...savedSettings.equipment } };
+let profile = { ...DEFAULT_PROFILE, ...savedProfile, goals: { ...DEFAULT_PROFILE.goals, ...savedProfile.goals } };
+profile.weekGoal = Math.min(7, Math.max(1, Number(profile.weekGoal) || 5));
+let plan = cleanPlan(store.get('plan', null));
+let plans = store.get('plans', []);
+let activePlan = store.get('activePlan', 'p1');
+let done = store.get('done', {});     // { 'YYYY-MM-DD': { day, secs, count } }
+let log = store.get('log', []);       // Verlauf: [{ key, ts, day, focus, secs, n, ex: [ids], kind }]
+let loads = store.get('loads', {});   // { übungsId: [{ d: 'YYYY-MM-DD', v: Zahl, k: 'kg' | 'band' }] }
+
 const saveSettings = () => store.set('settings', settings);
-const savePlan = () => store.set('plan', plan);
+const saveProfile = () => store.set('profile', profile);
+/** Speichert den aktiven Plan und spiegelt ihn in die Liste der gespeicherten Pläne. */
+function savePlan() {
+  store.set('plan', plan);
+  const p = plans.find((x) => x.id === activePlan);
+  if (p) { p.days = structuredClone(plan); store.set('plans', plans); }
+}
+const planName = () => plans.find((p) => p.id === activePlan)?.name || T.plans.defaultName;
 
 // ---------- Datum ----------
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseKey = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const weekday = (d) => (d.getDay() + 6) % 7; // Montag = 0
-function weekDates() {
-  const now = new Date();
-  return DAY_NAMES.map((_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - weekday(now) + i));
-}
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const weekDates = () => { const now = new Date(); return T.days.map((_, i) => addDays(now, i - weekday(now))); };
+const weekKey = (d) => dayKey(addDays(d, -weekday(d)));
+const monthKey = (d) => dayKey(d).slice(0, 7);
 
 // ---------- Fortschritt ----------
-/** Tage in Folge, an denen trainiert wurde oder Ruhetag war. Heute zählt erst, wenn erledigt. */
-function streak() {
+const isOk = (d) => done[dayKey(d)] || plan[weekday(d)].type === 'rest';
+
+/** Aktueller und längster Streak: Tage in Folge mit Training oder Ruhetag. Heute zählt erst, wenn erledigt. */
+function streaks() {
   const keys = Object.keys(done).sort();
-  if (!keys.length) return 0;
-  const ok = (d) => done[dayKey(d)] || plan[weekday(d)].type === 'rest';
-  const d = new Date();
-  if (!ok(d)) d.setDate(d.getDate() - 1);
-  let n = 0;
-  while (dayKey(d) >= keys[0] && ok(d)) { n++; d.setDate(d.getDate() - 1); }
-  return n;
+  if (!keys.length) return { current: 0, longest: 0 };
+  const today = parseKey(dayKey(new Date()));
+  let run = 0, longest = 0;
+  for (const d = parseKey(keys[0]); d <= today; d.setDate(d.getDate() + 1)) {
+    if (isOk(d)) longest = Math.max(longest, ++run);
+    else if (d < today) run = 0; // heute noch offen bricht den Streak nicht
+  }
+  return { current: run, longest };
+}
+
+/** Summen pro Zeitraum: { schlüssel: { workouts, secs } }. */
+function bucketBy(keyFn) {
+  const out = {};
+  for (const [key, v] of Object.entries(done)) {
+    const b = (out[keyFn(parseKey(key))] ??= { workouts: 0, secs: 0 });
+    b.workouts += v.count || 1;
+    b.secs += v.secs || 0;
+  }
+  return out;
 }
 
 function stats() {
-  const week = weekDates().map((d) => done[dayKey(d)]).filter(Boolean);
+  const week = weekDates().map((d) => done[dayKey(d)]).filter(Boolean), all = Object.values(done);
+  const sum = (list, f) => list.reduce((s, x) => s + f(x), 0);
   return {
-    weekDone: week.length,
-    weekPlanned: plan.filter((d) => d.type === 'training').length,
-    minutes: Math.round(week.reduce((s, x) => s + x.secs, 0) / 60),
-    streak: streak(),
+    weekDays: week.length,
+    weekMinutes: Math.round(sum(week, (x) => x.secs || 0) / 60),
+    total: sum(all, (x) => x.count || 1),
+    totalMinutes: Math.round(sum(all, (x) => x.secs || 0) / 60),
+    bestWeek: Math.max(0, ...Object.values(bucketBy(weekKey)).map((w) => w.workouts)),
+    ...streaks(),
   };
 }
 
 const workoutSecs = (n) => PREP + n * (settings.rounds * settings.work + (settings.rounds - 1) * settings.rest) + (n - 1) * settings.restBetween;
+
+// ---------- Gewicht / Bandstärke pro Übung ----------
+const loadKind = (ex) => (ex.equipment.some((k) => k.startsWith('band')) ? 'band'
+  : ex.equipment.some((k) => k === 'kurzhanteln' || k === 'dumbbell') ? 'kg' : null);
+const bestLoad = (id) => (loads[id] || []).reduce((b, x) => (!b || x.v > b.v ? x : b), null);
+const fmtLoad = (l) => (l.k === 'band' ? T.bands[l.v - 1] : `${l.v.toLocaleString('de-DE')} ${T.load.kg}`);
+function addLoad(id, v) {
+  const list = (loads[id] ??= []), d = dayKey(new Date()), i = list.findIndex((x) => x.d === d);
+  if (i >= 0) list[i].v = v; else list.push({ d, v, k: loadKind(EX[id]) });
+  list.sort((a, b) => a.d.localeCompare(b.d));
+  store.set('loads', loads);
+}
 
 // ---------- Equipment & Ersatzübungen ----------
 const available = (ex) => ex.equipment.every((e) => settings.equipment[e] !== false);
@@ -98,8 +168,16 @@ function resolveDay(day) {
   });
 }
 
-// ---------- Plan neu mischen ----------
+// ---------- Plan: mischen, bearbeiten, prüfen ----------
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/** Titel eines Tages aus den zwei häufigsten Oberkörper-Gruppen (sonst „… & Arme"). */
+function focusOf(ids) {
+  const count = {};
+  ids.map((id) => EX[id]).filter((e) => e && category(e.group) === 'oben').forEach((e) => { count[e.group] = (count[e.group] || 0) + 1; });
+  const top = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 2).map((g) => GROUPS[g]);
+  return (top.length > 1 ? top : [...top, GROUPS.arme]).join(' & ');
+}
 
 /** 8 Übungen: 2 Arme, 2 Bauch, 4 Oberkörper – möglichst ohne Wiederholung innerhalb der Woche. */
 function generateDay(used) {
@@ -122,10 +200,8 @@ function generateDay(used) {
   const lists = [[0, 1, 2, 3].map(() => take(['oben', 'arme'])), arms, abs];
   const out = [];
   while (lists.some((l) => l.length)) lists.forEach((l) => l.length && out.push(l.shift())); // abwechselnd mischen
-  const count = {};
-  out.filter((e) => category(e.group) === 'oben').forEach((e) => { count[e.group] = (count[e.group] || 0) + 1; });
-  const top = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 2).map((g) => GROUPS[g]);
-  return { exercises: out.map((e) => e.id), focus: (top.length > 1 ? top : [...top, 'Arme']).join(' & ') };
+  const ids = out.map((e) => e.id);
+  return { exercises: ids, focus: focusOf(ids) };
 }
 
 function shufflePlan() {
@@ -134,172 +210,290 @@ function shufflePlan() {
   savePlan();
 }
 
-// ---------- Illustration (optional eigenes Bild mit SVG-Fallback) ----------
-function illo(ex, animate = false) {
-  return ex.image
-    ? `<img src="${esc(ex.image)}" alt="${esc(ex.name)}" data-ex="${ex.id}" data-anim="${animate ? 1 : 0}">`
-    : Illu.svg(ex, { animate });
-}
-document.addEventListener('error', (e) => { // Bild fehlt → SVG anzeigen
-  const img = e.target;
-  if (img.tagName === 'IMG' && img.dataset.ex) img.outerHTML = Illu.svg(EX[img.dataset.ex], { animate: img.dataset.anim === '1' });
-}, true);
-
-const equipChips = (ex) => ex.equipment.map((k) => `<span class="eq">${Illu.icon(k)}${EQUIPMENT[k]}</span>`).join('');
-
-// ---------- Ansicht: Woche ----------
-const MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
-
-function exRow({ ex, replaced, missing }, n) {
-  return `<li><button class="exrow" data-ex="${ex.id}">
-    <span class="num">${n + 1}</span>
-    <span class="illu thumb">${illo(ex)}</span>
-    <span class="exrow-text"><strong>${esc(ex.name)}</strong>
-      <small>${GROUPS[ex.group]} · ${ex.equipment.map((k) => EQUIPMENT[k]).join(', ')}</small>
-      ${replaced ? `<small class="sub">Ersatz für ${esc(replaced.name)}</small>` : ''}
-      ${missing ? '<small class="miss">Equipment fehlt, kein Ersatz gefunden</small>' : ''}
-    </span></button></li>`;
-}
-
-function renderWeek() {
-  const dates = weekDates(), today = weekday(new Date()), st = stats();
-  const cards = plan.map((day, i) => {
-    const isToday = i === today, isDone = Boolean(done[dayKey(dates[i])]);
-    const date = dates[i].toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
-    const head = `<header class="day-head"><div>
-        <h2>${DAY_NAMES[i]}${isToday ? ' <span class="badge">Heute</span>' : ''}</h2>
-        <p class="muted">${date}${day.type === 'training' ? ` · ${esc(day.focus || '')}` : ''}</p>
-      </div>${isDone ? '<span class="check" aria-label="Erledigt">✓</span>' : ''}</header>`;
-    if (day.type === 'rest') {
-      return `<article class="day rest${isToday ? ' today' : ''}" id="tag-${i}">${head}
-        <div class="rest-body">${MOON}<div><strong>Ruhetag · Erholung</strong>
-        <p>Kein Training, der Körper regeneriert. Optional: 10 bis 20 Minuten leichte Mobilisation oder ein entspannter Spaziergang.</p></div></div></article>`;
-    }
-    const rows = resolveDay(day);
-    return `<article class="day${isToday ? ' today' : ''}" id="tag-${i}">${head}
-      <ul class="exlist">${rows.map(exRow).join('')}</ul>
-      <button class="btn primary wide" data-start="${i}">${isDone ? 'Nochmal trainieren' : 'Training starten'} · ${Math.round(workoutSecs(rows.length) / 60)} Min</button>
-    </article>`;
-  }).join('');
-
-  view.innerHTML = `
-    <section class="stats">
-      <div class="stat"><b>${st.weekDone}/${st.weekPlanned}</b><span>Trainings diese Woche</span></div>
-      <div class="stat"><b>${st.streak}</b><span>Tage Streak</span></div>
-      <div class="stat"><b>${st.minutes}</b><span>Minuten diese Woche</span></div>
-    </section>
-    <div class="days">${cards}</div>
-    <button class="btn ghost wide shuffle" data-action="shuffle">Plan neu mischen</button>`;
-}
-
-// ---------- Ansicht: Übungsbibliothek ----------
-const lib = { group: 'alle', equip: 'alle' };
-
-function renderLibrary() {
-  const chips = (key, entries) => `<div class="chips">${entries.map(([v, label]) =>
-    `<button class="chip${lib[key] === v ? ' on' : ''}" data-filter="${key}" data-value="${v}">${label}</button>`).join('')}</div>`;
-  const list = EXERCISES.filter((e) => (lib.group === 'alle' || e.group === lib.group) && (lib.equip === 'alle' || e.equipment.includes(lib.equip)));
-  view.innerHTML = `
-    ${chips('group', [['alle', 'Alle Muskeln'], ...Object.entries(GROUPS)])}
-    ${chips('equip', [['alle', 'Alles Equipment'], ...Object.entries(EQUIPMENT).map(([k, l]) => [k, Illu.icon(k) + l])])}
-    <p class="muted small">${list.length} Übungen</p>
-    <div class="grid">${list.map((e) => `<button class="card-ex" data-ex="${e.id}">
-      <span class="illu">${illo(e)}</span><strong>${esc(e.name)}</strong>
-      <small class="muted">${GROUPS[e.group]}</small><span class="icons">${e.equipment.map(Illu.icon).join('')}</span>
-    </button>`).join('')}</div>`;
-}
-
-// ---------- Ansicht: Einstellungen ----------
-function renderSettings() {
-  const num = (key, label, min, max, unit) => `<label class="row"><span>${label}</span>
-    <span class="num-input"><input type="number" inputmode="numeric" min="${min}" max="${max}" value="${settings[key]}" data-setting="${key}">${unit}</span></label>`;
-  const toggle = (attr, on, label) => `<label class="row"><span>${label}</span>
-    <span class="switch"><input type="checkbox" ${attr}${on ? ' checked' : ''}><i></i></span></label>`;
-  view.innerHTML = `
-    <section class="panel"><h3>Timer</h3>
-      ${num('work', 'Belastung', 5, 120, 's')}${num('rest', 'Pause', 0, 120, 's')}
-      ${num('rounds', 'Runden pro Übung', 1, 20, '')}${num('restBetween', 'Pause zwischen Übungen', 0, 300, 's')}
-      <p class="muted small">Ein Training mit 8 Übungen dauert so ca. ${Math.round(workoutSecs(8) / 60)} Minuten.</p></section>
-    <section class="panel"><h3>Ton</h3>
-      ${toggle('data-setting="sound"', settings.sound, 'Piepstöne')}${toggle('data-setting="voice"', settings.voice, 'Sprachansage')}</section>
-    <section class="panel"><h3>Equipment</h3>
-      <p class="muted small">Deaktiviertes Equipment wird im Plan durch passende Ersatzübungen ersetzt.</p>
-      ${Object.entries(EQUIPMENT).map(([k, l]) => toggle(`data-equip="${k}"`, settings.equipment[k] !== false, Illu.icon(k) + l)).join('')}</section>
-    <section class="panel"><h3>Trainings- und Ruhetage</h3>
-      ${plan.map((d, i) => `<label class="row"><span>${DAY_NAMES[i]}</span><select data-daytype="${i}">
-        <option value="training"${d.type === 'training' ? ' selected' : ''}>Training</option>
-        <option value="rest"${d.type === 'rest' ? ' selected' : ''}>Ruhetag</option></select></label>`).join('')}</section>
-    <section class="panel stack"><h3>Plan & Daten</h3>
-      <button class="btn" data-action="shuffle">Plan neu mischen</button>
-      <button class="btn ghost" data-action="reset-plan">Standardplan wiederherstellen</button>
-      <button class="btn danger" data-action="reset-progress">Fortschritt löschen</button></section>`;
-}
-
-// ---------- Navigation ----------
-const VIEWS = { woche: renderWeek, bibliothek: renderLibrary, einstellungen: renderSettings };
-const TITLES = { woche: 'Wochenplan', bibliothek: 'Übungen', einstellungen: 'Einstellungen' };
-
-function route() {
-  const name = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'woche';
-  $('#title').textContent = TITLES[name];
-  document.querySelectorAll('.tabbar a').forEach((a) => a.classList.toggle('active', a.hash === '#' + name));
-  VIEWS[name]();
-}
-
-function action(name) {
-  if (name === 'shuffle') {
-    if (!confirm('Neuen Wochenplan für alle Trainingstage erzeugen?')) return;
-    shufflePlan();
-  } else if (name === 'reset-plan') {
-    if (!confirm('Standardplan wiederherstellen? Eigene Änderungen gehen verloren.')) return;
-    plan = structuredClone(DEFAULT_PLAN);
-    savePlan();
-  } else if (name === 'reset-progress') {
-    if (!confirm('Alle erledigten Trainings und den Streak löschen?')) return;
-    done = {};
-    store.set('done', done);
+function setDayType(i, type) {
+  const day = plan[i];
+  day.type = type;
+  if (type === 'training' && !day.exercises.length) { // neuer Trainingstag → Übungen erzeugen
+    Object.assign(day, generateDay(new Set(plan.flatMap((d) => (d.type === 'training' ? d.exercises : [])))));
   }
-  route();
+  savePlan();
+}
+function replaceExercise(i, pos, id) {
+  const d = plan[i];
+  d.exercises[pos] = id;
+  d.focus = focusOf(d.exercises);
+  savePlan();
+}
+function moveExercise(i, pos, dir) {
+  const a = plan[i].exercises, j = pos + dir;
+  if (j < 0 || j >= a.length) return;
+  [a[pos], a[j]] = [a[j], a[pos]];
+  savePlan();
+}
+function swapDays(i, j) { [plan[i], plan[j]] = [plan[j], plan[i]]; savePlan(); }
+
+/** Regel: mindestens 2 Arm- und 2 Bauchübungen pro Trainingstag. */
+function dayIssues(day) {
+  if (day.type !== 'training') return [];
+  const n = (g) => day.exercises.filter((id) => EX[id]?.group === g).length, out = [];
+  if (n('arme') < 2) out.push(T.rules.fewArms(n('arme')));
+  if (n('bauch') < 2) out.push(T.rules.fewAbs(n('bauch')));
+  return out;
+}
+/** Übungen, die an mehreren Trainingstagen vorkommen: [[id, [Tagesindizes]], …] */
+function duplicates() {
+  const seen = {};
+  plan.forEach((d, i) => d.type === 'training' && new Set(d.exercises).forEach((id) => (seen[id] ??= []).push(i)));
+  return Object.entries(seen).filter(([, days]) => days.length > 1);
 }
 
-view.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-ex],[data-start],[data-action],[data-filter]');
-  if (!t) return;
-  if (t.dataset.ex) openSheet(t.dataset.ex);
-  else if (t.dataset.start) startWorkout(Number(t.dataset.start));
-  else if (t.dataset.filter) { lib[t.dataset.filter] = t.dataset.value; renderLibrary(); }
-  else action(t.dataset.action);
-});
+// ---------- Mehrere Pläne ----------
+function savePlanAs(name) {
+  const p = { id: 'p' + Date.now().toString(36), name, days: structuredClone(plan) };
+  plans.push(p);
+  activePlan = p.id;
+  store.set('plans', plans);
+  store.set('activePlan', activePlan);
+}
+function switchPlan(id) {
+  const p = plans.find((x) => x.id === id);
+  if (!p) return;
+  plan = cleanPlan(structuredClone(p.days));
+  activePlan = id;
+  store.set('activePlan', id);
+  store.set('plan', plan);
+}
 
-view.addEventListener('change', (e) => {
-  const el = e.target;
-  if (el.dataset.setting) {
-    if (el.type === 'checkbox') settings[el.dataset.setting] = el.checked;
-    else settings[el.dataset.setting] = Math.min(+el.max, Math.max(+el.min, parseInt(el.value, 10) || 0));
-  } else if (el.dataset.equip) {
-    settings.equipment[el.dataset.equip] = el.checked;
-  } else if (el.dataset.daytype) {
-    const day = plan[+el.dataset.daytype];
-    day.type = el.value;
-    if (day.type === 'training' && !day.exercises.length) { // neuer Trainingstag → Übungen erzeugen
-      Object.assign(day, generateDay(new Set(plan.flatMap((d) => (d.type === 'training' ? d.exercises : [])))));
-    }
-    savePlan();
-  }
-  saveSettings();
-  renderSettings();
-});
+// ---------- Kurz-Workouts (nur ein Bereich) ----------
+const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+/** Stabile Auswahl pro Tag und Bereich, damit Karte und Start dieselben Übungen zeigen. */
+function quickList(group) {
+  const rnd = mulberry32([...(dayKey(new Date()) + group)].reduce((s, c) => (s * 31 + c.charCodeAt(0)) | 0, 7));
+  return EXERCISES.filter((e) => e.group === group && available(e))
+    .map((e) => [rnd(), e]).sort((a, b) => a[0] - b[0]).slice(0, QUICK_COUNT).map((x) => x[1]);
+}
 
-// ---------- Übungsdetails ----------
+// ---------- Dialoge (Übungsdetails, Verlauf, Bereich) ----------
+function showSheet(html) {
+  $('#sheet-body').innerHTML = html;
+  if (!$('#sheet').open) $('#sheet').showModal();
+}
+const closeDialogs = () => document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+
+/** Kleiner Verlauf der Einträge (Linie), bei weniger als 2 Einträgen nur der Wert. */
+function spark(hist) {
+  const h = hist.slice(-10);
+  if (h.length < 2) return h.length ? `<p class="muted small">${dateLabel(h[0].d)}: ${fmtLoad(h[0])}</p>` : '';
+  const vs = h.map((x) => x.v), lo = Math.min(...vs), span = (Math.max(...vs) - lo) || 1;
+  const pts = h.map((x, i) => [8 + (i * 264) / (h.length - 1), 52 - ((x.v - lo) / span) * 44]);
+  return `<svg class="spark" viewBox="0 0 280 60" role="img" aria-label="${T.load.history}"><polyline points="${pts.map((p) => p.join(',')).join(' ')}"/>
+    ${pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5"/>`).join('')}</svg>
+    <p class="muted small">${dateLabel(h[0].d)}: ${fmtLoad(h[0])} → ${dateLabel(h.at(-1).d)}: ${fmtLoad(h.at(-1))}</p>`;
+}
+
+function loadForm(ex) {
+  const kind = loadKind(ex);
+  if (!kind) return '';
+  const hist = loads[ex.id] || [], best = bestLoad(ex.id);
+  const input = kind === 'kg'
+    ? `<input type="number" id="load-v" class="field" inputmode="decimal" min="0.5" max="200" step="0.5" placeholder="${T.load.kg}" aria-label="${T.load.titleKg}">`
+    : `<select id="load-v" aria-label="${T.load.titleBand}">${T.bands.map((b, i) => `<option value="${i + 1}">${b}</option>`).join('')}</select>`;
+  return `<section class="loadbox"><h3>${kind === 'kg' ? T.load.titleKg : T.load.titleBand}</h3>
+    ${best ? `<p>${T.load.best}: <strong>${fmtLoad(best)}</strong></p>` : `<p class="muted">${T.load.none}</p>`}
+    ${spark(hist)}
+    <div class="row-inline">${input}<button class="btn primary" data-act="save-load" data-id="${ex.id}">${T.load.save}</button></div></section>`;
+}
+
 function openSheet(id) {
   const ex = EX[id];
-  $('#sheet-body').innerHTML = `<span class="illu big">${illo(ex, true)}</span>
+  showSheet(`<span class="illu big">${illo(ex, true)}</span>
     <h2>${esc(ex.name)}</h2><p class="muted">${GROUPS[ex.group]}</p>
     <div class="equip-list">${equipChips(ex)}</div><p>${esc(ex.desc)}</p>
-    ${ex.tip ? `<p class="tip">${esc(ex.tip)}</p>` : ''}`;
-  $('#sheet').showModal();
+    ${ex.tip ? `<p class="tip">${esc(ex.tip)}</p>` : ''}${loadForm(ex)}`);
 }
-$('#sheet').addEventListener('click', (e) => { if (e.target === e.currentTarget || e.target.closest('.sheet-close')) e.currentTarget.close(); });
+
+function openLog(i) {
+  const e = log[i], list = (e.ex || []).map((id) => EX[id]).filter(Boolean);
+  const date = parseKey(e.key).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  showSheet(`<h2>${esc(e.focus || T.workout)}</h2>
+    <p class="muted">${date} · ${T.min(mins(e.secs))} · ${T.exercises(list.length)}</p>
+    ${list.length ? `<ul class="exlist left">${list.map((ex, n) => exRow({ ex }, n, true)).join('')}</ul>
+      <button class="btn primary wide" data-act="repeat" data-i="${i}">${T.again}</button>` : ''}`);
+}
+
+function openArea(g) {
+  const list = quickList(g);
+  showSheet(`<h2>${GROUPS[g]}</h2>
+    ${list.length ? `<button class="btn primary big wide" data-act="start-quick" data-g="${g}">${T.area.startQuick(list.length, mins(workoutSecs(list.length)))}</button>`
+      : `<p class="muted">${T.training.noEquip}</p>`}
+    <a class="btn wide" href="#/training/uebungen/${g}" data-act="close-sheet">${T.area.showList}</a>`);
+}
+
+// ---------- Daten: Export, Import, Zurücksetzen ----------
+async function exportData() {
+  const data = {};
+  store.keys().forEach((k) => { data[k] = localStorage.getItem(k); });
+  const text = JSON.stringify({ app: 'tabata', schema: SCHEMA, exported: new Date().toISOString(), data }, null, 2);
+  const file = new File([text], `tabata-${dayKey(new Date())}.json`, { type: 'application/json' });
+  try {
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  } catch (e) { if (e.name === 'AbortError') return; }
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(file), download: file.name });
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      if (obj?.app !== 'tabata' || typeof obj.data !== 'object') throw new Error('format');
+      const entries = Object.entries(obj.data).filter(([k, v]) => k.startsWith('tabata.') && typeof v === 'string' && JSON.parse(v) !== undefined);
+      if (!entries.length) throw new Error('leer');
+      if (!confirm(T.data.importConfirm)) return;
+      store.keys().forEach((k) => localStorage.removeItem(k));
+      entries.forEach(([k, v]) => localStorage.setItem(k, v));
+      location.reload(); // Zustand neu laden, Migration läuft bei Bedarf
+    } catch { alert(T.data.importError); }
+  };
+  reader.readAsText(file);
+}
+
+function resetAll() { store.keys().forEach((k) => localStorage.removeItem(k)); location.reload(); }
+
+// ---------- Aktionen (data-act) ----------
+const ACT = {
+  ex: (el) => openSheet(el.dataset.id),
+  log: (el) => openLog(+el.dataset.i),
+  area: (el) => openArea(el.dataset.g),
+  'close-sheet': () => closeDialogs(),
+  'start-day': (el) => { closeDialogs(); startDay(+el.dataset.i); },
+  'start-quick': (el) => { closeDialogs(); startQuick(el.dataset.g); },
+  repeat: (el) => {
+    const e = log[+el.dataset.i];
+    closeDialogs();
+    startWorkout((e.ex || []).map((id) => EX[id]).filter(Boolean), { day: e.day, title: e.focus || T.workout, label: e.focus, kind: e.kind });
+  },
+  'lib-filter': (el) => { lib[el.dataset.k] = el.dataset.v; render(); },
+  'pick-filter': (el) => { pick[el.dataset.k] = el.dataset.v; renderPicker(); },
+  replace: (el) => {
+    Object.assign(pick, { day: +el.dataset.i, pos: +el.dataset.n, group: 'alle', equip: 'alle', q: '' });
+    renderPicker();
+    $('#picker').showModal();
+  },
+  pick: (el) => { replaceExercise(pick.day, pick.pos, el.dataset.id); $('#picker').close(); render(); },
+  move: (el) => { moveExercise(+el.dataset.i, +el.dataset.n, +el.dataset.d); render(); },
+  swap: (el) => {
+    const target = +$('#swap-target').value;
+    swapDays(+el.dataset.i, target);
+    location.hash = `#/wochenplan/${target}`; // folgt dem getauschten Tag
+  },
+  'reminder-clear': () => { settings.reminder = ''; saveSettings(); render(); },
+  shuffle: () => { if (confirm(T.confirm.shuffle)) { shufflePlan(); render(); } },
+  'reset-plan': () => { if (confirm(T.confirm.resetPlan)) { plan = structuredClone(DEFAULT_PLAN); savePlan(); render(); } },
+  'reset-progress': () => {
+    if (!confirm(T.confirm.resetProgress)) return;
+    done = {}; log = []; loads = {};
+    store.set('done', done); store.set('log', log); store.set('loads', loads);
+    render();
+  },
+  'reset-all': () => { if (confirm(T.confirm.resetAll)) resetAll(); },
+  export: () => exportData().catch(() => alert(T.data.exportFailed)),
+  'plan-save': () => {
+    const name = prompt(T.prompt.newPlan, T.newPlanName(plans.length + 1))?.trim();
+    if (name) { savePlanAs(name.slice(0, 40)); render(); }
+  },
+  'plan-switch': (el) => { switchPlan(el.dataset.id); render(); },
+  'plan-rename': (el) => {
+    const p = plans.find((x) => x.id === el.dataset.id), name = prompt(T.prompt.rename, p.name)?.trim();
+    if (name) { p.name = name.slice(0, 40); store.set('plans', plans); render(); }
+  },
+  'plan-delete': (el) => {
+    const p = plans.find((x) => x.id === el.dataset.id);
+    if (p.id === activePlan || !confirm(T.confirm.deletePlan(p.name))) return;
+    plans = plans.filter((x) => x !== p);
+    store.set('plans', plans);
+    render();
+  },
+  prog: (el) => { prog[el.dataset.k] = el.dataset.v; render(); },
+  cal: (el) => { prog.month = Math.min(0, prog.month + +el.dataset.d); render(); },
+  'save-load': (el) => {
+    const raw = $('#load-v').value, v = loadKind(EX[el.dataset.id]) === 'band' ? parseInt(raw, 10) : parseFloat(raw.replace(',', '.'));
+    if (!(v > 0)) return alert(T.load.invalid);
+    addLoad(el.dataset.id, v);
+    openSheet(el.dataset.id);
+    render();
+  },
+};
+
+// Änderungen an Formularfeldern (data-chg)
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+const CHG = {
+  name: (el) => { profile.name = el.value.trim().slice(0, 30); saveProfile(); },
+  weight: (el) => { const v = parseFloat(el.value); profile.weight = v ? clamp(v, 20, 400) : ''; saveProfile(); },
+  goal: (el) => { profile.goals[el.dataset.k] = el.checked; saveProfile(); },
+  weekGoal: (el) => { profile.weekGoal = clamp(+el.value, 1, 7); saveProfile(); },
+  equip: (el) => { settings.equipment[el.dataset.k] = el.checked; saveSettings(); },
+  num: (el) => { settings[el.dataset.k] = clamp(parseInt(el.value, 10) || 0, +el.min, +el.max); saveSettings(); },
+  flag: (el) => { settings[el.dataset.k] = el.checked; saveSettings(); },
+  reminder: (el) => { settings.reminder = el.value; saveSettings(); },
+  daytype: (el) => setDayType(+el.dataset.i, el.value),
+  import: (el) => { if (el.files[0]) importData(el.files[0]); el.value = ''; },
+};
+// Eingabe während des Tippens (nur Ergebnisliste neu zeichnen, damit die Tastatur offen bleibt)
+const INP = {
+  lib: (el) => { lib.q = el.value; $('#lib-results').innerHTML = libResults(); },
+  pick: (el) => { pick.q = el.value; $('#pick-results').innerHTML = pickResults(); },
+};
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act]');
+  if (t) ACT[t.dataset.act]?.(t);
+});
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (!el.dataset.chg) return;
+  CHG[el.dataset.chg]?.(el);
+  if (el.dataset.chg !== 'import') render();
+});
+document.addEventListener('input', (e) => INP[e.target.dataset.in]?.(e.target));
+
+// Dialoge schließen: Hintergrund oder ✕
+for (const id of ['#sheet', '#picker']) {
+  $(id).addEventListener('click', (e) => { if (e.target === e.currentTarget || e.target.closest('.sheet-close')) e.currentTarget.close(); });
+}
+
+// ---------- Router (#/start, #/training, #/wochenplan, #/fortschritt, #/profil) ----------
+const ROUTES = { start: renderStart, training: renderTraining, wochenplan: renderPlanTab, fortschritt: renderProgress, profil: renderProfile };
+
+function parseHash() {
+  const [tab, sub, arg] = location.hash.replace(/^#\/?/, '').split('/');
+  return { tab: ROUTES[tab] ? tab : 'start', sub, arg };
+}
+
+/** Zeichnet die aktuelle Seite. fresh = Seitenwechsel (nach oben scrollen, sanfter Übergang). */
+function render(fresh = false) {
+  const { tab, sub, arg } = parseHash();
+  const info = ROUTES[tab](sub, arg, fresh);
+  $('#title').textContent = info.title;
+  const back = $('#back');
+  back.hidden = !info.back;
+  if (info.back) back.href = info.back;
+  document.querySelectorAll('.tabbar a').forEach((a) => {
+    const on = a.dataset.tab === tab;
+    a.classList.toggle('active', on);
+    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  if (fresh) {
+    window.scrollTo(0, 0);
+    view.classList.remove('page-in');
+    void view.offsetWidth; // Animation neu starten
+    view.classList.add('page-in');
+  }
+}
+const route = () => render(true);
 
 // ---------- Ton, Sprache, Bildschirm-Sperre ----------
 const Sound = {
@@ -333,7 +527,7 @@ function say(text) {
 let wakeLock = null;
 async function requestWakeLock() {
   try {
-    if ('wakeLock' in navigator && !wakeLock) {
+    if (settings.keepAwake && 'wakeLock' in navigator && !wakeLock) {
       wakeLock = await navigator.wakeLock.request('screen');
       wakeLock.addEventListener('release', () => { wakeLock = null; });
     }
@@ -342,10 +536,9 @@ async function requestWakeLock() {
 function releaseWakeLock() { wakeLock?.release().catch(() => {}); wakeLock = null; }
 
 // ---------- Training (Timer) ----------
-const W = { list: [], phases: [], i: 0, endAt: 0, left: 0, running: false, timer: 0, lastSec: 0, shown: null, day: 0, startedAt: 0, finished: false };
+const W = { list: [], phases: [], i: 0, endAt: 0, left: 0, running: false, timer: 0, lastSec: 0, shown: null, meta: {}, startedAt: 0, finished: false };
 const wo = (id) => document.getElementById('wo-' + id);
 const RING = 2 * Math.PI * 54;
-const PHASE_LABEL = { prep: 'Bereit machen', work: 'Belastung', rest: 'Pause', break: 'Pause · Als Nächstes' };
 
 /** Ablauf: Vorbereitung, je Übung Runden aus Belastung/Pause, dazwischen lange Pause mit Vorschau. */
 function buildPhases(list) {
@@ -360,9 +553,18 @@ function buildPhases(list) {
   return out;
 }
 
-function startWorkout(dayIdx) {
-  const list = resolveDay(plan[dayIdx]).map((r) => r.ex);
-  Object.assign(W, { day: dayIdx, list, phases: buildPhases(list), i: 0, running: false, finished: false, startedAt: 0, shown: null, lastSec: 0 });
+/** Trainingstag aus dem Plan starten. */
+const startDay = (i) => startWorkout(resolveDay(plan[i]).map((r) => r.ex), { day: i, title: T.days[i], label: plan[i].focus, kind: 'plan' });
+/** Kurz-Workout für einen Bereich starten. */
+function startQuick(group) {
+  const list = quickList(group), label = T.training.only(GROUPS[group]);
+  if (list.length) startWorkout(list, { day: weekday(new Date()), title: T.quickTitle(GROUPS[group]), label, kind: 'quick' });
+}
+
+/** meta: { day, title, label, kind } – label landet im Verlauf. */
+function startWorkout(list, meta) {
+  if (!list.length) return;
+  Object.assign(W, { meta, list, phases: buildPhases(list), i: 0, running: false, finished: false, startedAt: 0, shown: null, lastSec: 0 });
   W.left = W.phases[0].dur * 1000;
   $('#workout').hidden = false;
   document.body.classList.add('noscroll');
@@ -374,9 +576,9 @@ function startWorkout(dayIdx) {
 function showPhase() {
   const ph = W.phases[W.i], ex = W.list[ph.ex];
   $('#workout').dataset.phase = ph.type;
-  wo('phase').textContent = PHASE_LABEL[ph.type];
-  wo('ex').textContent = `Übung ${ph.ex + 1} von ${W.list.length}`;
-  wo('round').textContent = ph.round ? `Runde ${ph.round} von ${settings.rounds}` : ph.type === 'prep' ? 'Gleich geht es los' : 'Nächste Übung';
+  wo('phase').textContent = T.phase[ph.type];
+  wo('ex').textContent = T.wo.exOf(ph.ex + 1, W.list.length);
+  wo('round').textContent = ph.round ? T.wo.roundOf(ph.round, settings.rounds) : ph.type === 'prep' ? T.wo.soon : T.wo.nextEx;
   if (W.shown !== ex.id) { // Illustration nur bei Übungswechsel neu setzen (Animation läuft weiter)
     W.shown = ex.id;
     wo('illu').innerHTML = illo(ex, true);
@@ -395,7 +597,7 @@ function drawTime(rem) {
 }
 
 function updateToggle() {
-  wo('toggle').textContent = W.finished ? 'Fertig' : W.running ? 'Pause' : W.startedAt ? 'Weiter' : 'Start';
+  wo('toggle').textContent = W.finished ? T.wo.finish : W.running ? T.wo.pause : W.startedAt ? T.wo.resume : T.wo.start;
   wo('skip').disabled = W.finished;
 }
 
@@ -404,10 +606,10 @@ function enterPhase() {
   showPhase();
   if (ph.type === 'work') {
     Sound.beep(1320, 0.4);
-    if (ph.round === 1) say('Los');
+    if (ph.round === 1) say(T.say.go);
   } else {
     Sound.beep(660, 0.35);
-    if (ph.type === 'break') say('Pause. Als Nächstes: ' + W.list[ph.ex].name);
+    if (ph.type === 'break') say(T.say.next(W.list[ph.ex].name));
   }
 }
 
@@ -437,7 +639,7 @@ function tick() {
 
 function resume() {
   Sound.unlock();
-  if (!W.startedAt) { W.startedAt = Date.now(); say('Los geht es. Erste Übung: ' + W.list[0].name); }
+  if (!W.startedAt) { W.startedAt = Date.now(); say(T.say.start(W.list[0].name)); }
   W.endAt = Date.now() + W.left;
   W.running = true;
   clearInterval(W.timer);
@@ -464,27 +666,30 @@ function skip() {
   drawTime(W.left);
 }
 
+/** Abschluss: Tag als erledigt markieren (Streak) und Eintrag im Verlauf speichern. */
 function finish() {
   clearInterval(W.timer);
   Object.assign(W, { running: false, finished: true });
   const secs = Math.round((Date.now() - (W.startedAt || Date.now())) / 1000);
   const key = dayKey(new Date()), prev = done[key];
-  done[key] = { day: W.day, secs: (prev?.secs || 0) + secs, count: (prev?.count || 0) + 1 };
+  done[key] = { day: W.meta.day, secs: (prev?.secs || 0) + secs, count: (prev?.count || 0) + 1 };
   store.set('done', done);
+  log.push({ key, ts: Date.now(), day: W.meta.day, focus: W.meta.label || '', secs, n: 1, ex: W.list.map((e) => e.id), kind: W.meta.kind });
+  store.set('log', log);
 
   $('#workout').dataset.phase = 'done';
   $('#workout').classList.remove('warn');
-  wo('phase').textContent = 'Geschafft!';
-  wo('ex').textContent = DAY_NAMES[W.day];
+  wo('phase').textContent = T.wo.doneTitle;
+  wo('ex').textContent = W.meta.title;
   wo('round').textContent = '';
-  wo('name').textContent = 'Training abgeschlossen';
-  wo('desc').textContent = `${W.list.length} Übungen in ${Math.round(secs / 60)} Minuten. Stark!`;
+  wo('name').textContent = T.wo.doneName;
+  wo('desc').textContent = T.wo.doneDesc(W.list.length, Math.round(secs / 60));
   wo('tip').textContent = '';
   wo('equip').innerHTML = '';
   wo('time').textContent = '✓';
   wo('ring').style.strokeDashoffset = 0;
   [0, 0.2, 0.4].forEach((d) => Sound.beep(1320, 0.15, d));
-  say('Geschafft. Super Training!');
+  say(T.say.done);
   releaseWakeLock();
   updateToggle();
 }
@@ -497,14 +702,14 @@ function closeWorkout() {
   $('#workout').hidden = true;
   wo('illu').innerHTML = '';
   document.body.classList.remove('noscroll');
-  route();
+  render();
 }
 
 function abortWorkout() {
   if (W.finished || !W.startedAt) return closeWorkout();
   const wasRunning = W.running;
   if (wasRunning) pause();
-  if (confirm('Training wirklich abbrechen?')) closeWorkout();
+  if (confirm(T.confirm.abort)) closeWorkout();
   else if (wasRunning) resume();
 }
 
@@ -519,8 +724,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- Start ----------
 window.addEventListener('hashchange', route);
-route();
-if (weekday(new Date()) > 0) document.getElementById('tag-' + weekday(new Date()))?.scrollIntoView({ block: 'start' });
+render(true);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('service-worker.js').catch(() => {});

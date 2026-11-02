@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="theme-color" content="#090b0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,19 +16,32 @@
   <title>Tabata Woche</title>
 </head>
 <body>
-  <header class="topbar"><h1 id="title">Wochenplan</h1></header>
+  <header class="topbar">
+    <div class="topbar-in">
+      <a id="back" class="icon-btn" href="#/wochenplan" aria-label="Zurück" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </a>
+      <h1 id="title">Start</h1>
+    </div>
+  </header>
 
-  <main id="view" aria-live="polite"></main>
+  <main id="view"></main>
 
-  <nav class="tabbar" aria-label="Navigation">
-    <a href="#woche">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Woche
+  <nav class="tabbar" aria-label="Hauptnavigation">
+    <a href="#/start" data-tab="start">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/></svg>Start
     </a>
-    <a href="#bibliothek">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>Übungen
+    <a href="#/training" data-tab="training">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M3.5 9.5v5M18 7v10M20.5 9.5v5M6 12h12"/></svg>Training
     </a>
-    <a href="#einstellungen">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Einstellungen
+    <a href="#/wochenplan" data-tab="wochenplan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Wochenplan
+    </a>
+    <a href="#/fortschritt" data-tab="fortschritt">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-9M12 20V4M19 20v-6"/></svg>Fortschritt
+    </a>
+    <a href="#/profil" data-tab="profil">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 4-6 8-6s7 2 8 6"/></svg>Profil
     </a>
   </nav>
 
@@ -73,8 +86,18 @@
     </div>
   </dialog>
 
+  <!-- Übung ersetzen (Wochenplan) -->
+  <dialog id="picker" class="sheet picker">
+    <div class="sheet-inner">
+      <button class="icon-btn sheet-close" aria-label="Schließen">✕</button>
+      <div id="picker-body"></div>
+    </div>
+  </dialog>
+
+  <script src="texts.js"></script>
   <script src="exercises.js"></script>
   <script src="illustrations.js"></script>
+  <script src="views.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
