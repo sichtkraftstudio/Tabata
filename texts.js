@@ -98,6 +98,8 @@ const T = {
     timer: 'Timer', work: 'Belastung', rest: 'Pause', rounds: 'Runden pro Übung', restBetween: 'Pause zwischen Übungen',
     timerNote: (m) => `Ein Training mit 8 Übungen dauert so ca. ${m} Minuten.`,
     sound: 'Ton und Anzeige', beeps: 'Piepstöne', voice: 'Sprachansage', keepAwake: 'Bildschirm anlassen',
+    beat: 'Beat in der Belastung', bpm: 'Tempo (BPM)', mixMusic: 'Eigene Musik weiterlaufen lassen',
+    musicHint: 'Starte deine Musik vorher in Spotify oder Apple Music. Läuft sie nicht weiter oder sind die Töne stumm, schalte „Eigene Musik weiterlaufen lassen“ aus.',
     days: 'Trainings- und Ruhetage', data: 'Daten',
     dataHint: 'Alle Daten liegen nur auf diesem Gerät. Mit dem Export sicherst du sie als Datei.',
     export: 'Daten exportieren (JSON)', import: 'Daten importieren (JSON)',

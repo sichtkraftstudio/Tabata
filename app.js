@@ -6,6 +6,7 @@ const PREP = 10;        // Sekunden „Bereit machen" vor der ersten Übung
 const SCHEMA = 2;       // Version der gespeicherten Daten (siehe migrate())
 const DEFAULT_SETTINGS = {
   work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false, keepAwake: true, reminder: '',
+  mixMusic: true, beat: false, bpm: 140,
   equipment: Object.fromEntries(Object.keys(EQUIPMENT).map((k) => [k, true])),
 };
 const DEFAULT_PROFILE = { name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
@@ -481,7 +482,44 @@ const Sound = {
   unlock() { // muss in einer Nutzeraktion passieren (iOS)
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!this.ctx && AC) this.ctx = new AC();
+    // „ambient": Töne mischen sich unter laufende Musik, statt sie zu stoppen (nicht überall unterstützt)
+    try { if (navigator.audioSession) navigator.audioSession.type = settings.mixMusic ? 'ambient' : 'auto'; } catch { /* egal */ }
     this.ctx?.resume();
+  },
+  nextBeat: 0, step: 0,
+  /** Beat nur in Belastungsphasen: Takt wird knapp im Voraus eingeplant (tick läuft alle 100 ms). */
+  beatTick() {
+    const c = this.ctx;
+    if (!c || !settings.sound || !settings.beat || !W.running || W.phases[W.i].type !== 'work') { this.nextBeat = 0; return; }
+    const now = c.currentTime, gap = 30 / settings.bpm; // Achtelnoten
+    if (this.nextBeat < now) { this.nextBeat = now + 0.05; this.step = 0; }
+    for (; this.nextBeat < now + 0.25; this.nextBeat += gap, this.step++) {
+      if (this.step % 2 === 0) this.kick(this.nextBeat); else this.hat(this.nextBeat);
+    }
+  },
+  kick(t) {
+    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    gain.gain.setValueAtTime(0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    osc.connect(gain).connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  },
+  hat(t) {
+    if (!this.noise) { // 0,05 s Rauschen, einmal erzeugt
+      this.noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.05, this.ctx.sampleRate);
+      this.noise.getChannelData(0).forEach((_, i, d) => { d[i] = Math.random() * 2 - 1; });
+    }
+    const src = this.ctx.createBufferSource(), hp = this.ctx.createBiquadFilter(), gain = this.ctx.createGain();
+    src.buffer = this.noise;
+    hp.type = 'highpass';
+    hp.frequency.value = 7000;
+    gain.gain.setValueAtTime(0.2, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(hp).connect(gain).connect(this.ctx.destination);
+    src.start(t);
   },
   beep(freq = 880, dur = 0.12, delay = 0) {
     if (!settings.sound || !this.ctx) return;
@@ -610,6 +648,7 @@ function tick() {
   if (W.lastSec && sec < W.lastSec && sec <= 3) Sound.beep(880, 0.12); // 3, 2, 1
   W.lastSec = sec;
   drawTime(rem);
+  Sound.beatTick();
 }
 
 function resume() {

@@ -396,6 +396,10 @@ function renderProfile() {
     <section class="panel"><h3>${T.profile.sound}</h3>
       ${toggle('data-chg="flag" data-k="sound"', settings.sound, T.profile.beeps)}
       ${toggle('data-chg="flag" data-k="voice"', settings.voice, T.profile.voice)}
+      ${toggle('data-chg="flag" data-k="beat"', settings.beat, T.profile.beat)}
+      ${settings.beat ? numInput('bpm', T.profile.bpm, 80, 180, '') : ''}
+      ${toggle('data-chg="flag" data-k="mixMusic"', settings.mixMusic, T.profile.mixMusic)}
+      <p class="muted small">${T.profile.musicHint}</p>
       ${toggle('data-chg="flag" data-k="keepAwake"', settings.keepAwake, T.profile.keepAwake)}</section>
     <details class="panel"><summary>${T.profile.timer}</summary>
       ${numInput('work', T.profile.work, 5, 120, 's')}${numInput('rest', T.profile.rest, 0, 120, 's')}
