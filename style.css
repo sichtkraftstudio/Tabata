@@ -215,15 +215,15 @@ select { padding: 0 10px; }
 .wo-bar i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .wo-bar b { display: block; height: 100%; border-radius: 3px; background: var(--phase); transform: scaleX(0); transform-origin: left; transition: transform 0.12s linear, background 0.3s; }
 .quote { margin: 0 0 14px; font-size: 1.05rem; line-height: 1.4; color: var(--muted); }
-.wo-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: 12px; padding-top: 8px; }
+.wo-body { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 3dvh; }
 .wo-figure { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .wo-phase { color: var(--phase); font-size: 1.3rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-.wo-info { width: 100%; max-width: 520px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.wo-info { flex: 1; width: 100%; max-width: 520px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .wo-info h2 { margin: 0; font-size: 2rem; line-height: 1.15; }
 .wo-info p { margin: 0; }
 #wo-desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-.ring { position: relative; width: min(260px, 66vw, 32dvh); aspect-ratio: 1; }
+.ring { position: relative; width: min(260px, 66vw, 32dvh); aspect-ratio: 1; margin: auto 0; }
 .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
 .ring-bg, .ring-fg { fill: none; stroke-width: 12; }
 .ring-fg { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--phase) 55%, transparent)); }
@@ -238,7 +238,9 @@ select { padding: 0 10px; }
 
 /* Querformat: Übungsname links, Timer rechts */
 @media (orientation: landscape) and (min-width: 560px) {
-  .wo-body { flex-direction: row; justify-content: center; gap: 4vw; }
+  .wo-body { flex-direction: row; justify-content: center; align-items: center; gap: 4vw; padding-top: 0; }
+  .wo-info { flex: none; }
+  .wo-phase { font-size: 2rem; }
   .ring { width: min(240px, 50dvh); }
   #wo-desc { -webkit-line-clamp: 2; }
 }

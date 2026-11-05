@@ -59,7 +59,7 @@ Tipps:
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
-**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v8'` hochzählen (`tabata-v9` …).
+**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v9'` hochzählen (`tabata-v10` …).
 
 **Aktualisierte Version auf iPhone und iPad laden:**
 1. Dateien hochladen und ca. 1 Minute warten.

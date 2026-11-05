@@ -6,7 +6,7 @@ const PREP = 10;        // Sekunden „Bereit machen" vor der ersten Übung
 const SCHEMA = 2;       // Version der gespeicherten Daten (siehe migrate())
 const DEFAULT_SETTINGS = {
   work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false, keepAwake: true, reminder: '',
-  mixMusic: true,
+  mixAudio: false,
   equipment: Object.fromEntries(Object.keys(EQUIPMENT).map((k) => [k, true])),
 };
 // Schwierigkeitsstufen: überschreiben Belastung, Pause, Runden und Pause zwischen den Übungen
@@ -496,8 +496,8 @@ const Sound = {
   unlock() { // muss in einer Nutzeraktion passieren (iOS)
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!this.ctx && AC) this.ctx = new AC();
-    // „ambient": Töne mischen sich unter laufende Musik, statt sie zu stoppen (nicht überall unterstützt)
-    try { if (navigator.audioSession) navigator.audioSession.type = settings.mixMusic ? 'ambient' : 'auto'; } catch { /* egal */ }
+    // „ambient": Töne mischen sich über laufende Musik, statt sie zu stoppen (nicht überall unterstützt)
+    try { if (navigator.audioSession) navigator.audioSession.type = settings.mixAudio ? 'ambient' : 'auto'; } catch { /* egal */ }
     this.ctx?.resume();
   },
   beep(freq = 880, dur = 0.12, delay = 0) { // weicher Glockenton: Grundton plus zwei leise Obertöne

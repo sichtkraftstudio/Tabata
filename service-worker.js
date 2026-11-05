@@ -3,7 +3,7 @@
  * die App startet sofort aus dem Cache und lädt im Hintergrund neue Versionen nach.
  * Für ein sauberes Update aller Nutzer: CACHE-Version erhöhen.
  */
-const CACHE = 'tabata-v8';
+const CACHE = 'tabata-v9';
 const ASSETS = [
   './', 'index.html', 'style.css', 'texts.js', 'app.js', 'views.js', 'exercises.js', 'illustrations.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',

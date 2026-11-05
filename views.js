@@ -387,7 +387,7 @@ function renderProfile() {
     <section class="panel"><h3>${T.profile.sound}</h3>
       ${toggle('data-chg="flag" data-k="sound"', settings.sound, T.profile.beeps)}
       ${toggle('data-chg="flag" data-k="voice"', settings.voice, T.profile.voice)}
-      ${toggle('data-chg="flag" data-k="mixMusic"', settings.mixMusic, T.profile.mixMusic)}
+      ${toggle('data-chg="flag" data-k="mixAudio"', settings.mixAudio, T.profile.mixAudio)}
       <p class="muted small">${T.profile.musicHint}</p>
       <button class="btn" data-act="sound-test">${T.profile.soundTest}</button>
       <p class="muted small" id="sound-info"></p>
