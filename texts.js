@@ -139,15 +139,15 @@ const T = {
     timer: 'Timer', work: 'Belastung', rest: 'Pause', rounds: 'Runden pro Übung', restBetween: 'Pause zwischen Übungen',
     timerNote: (m) => `Ein Training mit 8 Übungen dauert so ca. ${m} Minuten.`,
     sound: 'Ton und Anzeige', beeps: 'Piepstöne', voice: 'Sprachansage', keepAwake: 'Bildschirm anlassen',
-    mixAudio: 'Töne über eigene Musik legen',
+    mixAudio: 'Eigene Musik weiterlaufen lassen',
     soundTest: 'Ton testen',
     soundInfo: (state, mode, on) => `Audio: ${state || 'nicht verfügbar'} · Modus: ${mode || 'nicht unterstützt'}${on ? '' : ' · Piepstöne sind ausgeschaltet'}`,
-    musicHint: 'Hörst du keine Töne, schalte den Stummschalter am iPhone aus (kein roter Streifen) und stelle die Lautstärke hoch. Aus: Töne wie bisher. An: Spotify oder Apple Music laufen weiter und die Töne mischen sich darüber. Das klappt nicht auf jedem iPhone.',
+    musicHint: 'Aus: Die Töne sind auch bei aktivem Stummschalter zu hören, laufende Musik pausiert. An: Spotify oder Apple Music laufen weiter und die Töne mischen sich darüber. Dann muss der Stummschalter aus sein, und es klappt nicht auf jedem iPhone.',
     days: 'Trainings- und Ruhetage', data: 'Daten',
     dataHint: 'Alle Daten liegen nur auf diesem Gerät. Mit dem Export sicherst du sie als Datei.',
     export: 'Daten exportieren (JSON)', import: 'Daten importieren (JSON)',
     resetPlan: 'Standardplan wiederherstellen', resetProgress: 'Fortschritt löschen', resetAll: 'Alles zurücksetzen',
-    version: (v) => `Tabata-App · Datenversion ${v}`,
+    version: (v, schema) => `Tabata-App · Version ${v} · Datenversion ${schema}`,
   },
 
 

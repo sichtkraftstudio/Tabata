@@ -11,6 +11,7 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 | `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
 | `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, Standard-Wochenplan |
 | `illustrations.js` | Equipment-Icons |
+| `version.js` | App-Versionsnummer (Anzeige im Profil, Cache-Name) |
 | `service-worker.js` | Offline-Cache |
 | `manifest.webmanifest`, `icons/` | App-Name, Farben, Icons für den Home-Bildschirm |
 
@@ -59,7 +60,7 @@ Tipps:
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
-**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v9'` hochzählen (`tabata-v10` …).
+**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `version.js` die Zahl `VERSION` um 1 erhöhen. Sie steht unten im Profil, daran erkennst du, welche Version auf dem Gerät läuft.
 
 **Aktualisierte Version auf iPhone und iPad laden:**
 1. Dateien hochladen und ca. 1 Minute warten.

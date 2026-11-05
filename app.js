@@ -385,6 +385,7 @@ const ACT = {
     Sound.beep(660, 0.5);
     Sound.beep(990, 0.7, 0.14);
     $('#sound-info').textContent = T.profile.soundInfo(Sound.ctx?.state, navigator.audioSession?.type, settings.sound);
+    setTimeout(() => Sound.release(), 2000);
   },
   shuffle: () => { if (confirm(T.confirm.shuffle)) { shufflePlan(); render(); } },
   'reset-plan': () => { if (confirm(T.confirm.resetPlan)) { plan = structuredClone(DEFAULT_PLAN); savePlan(); render(); } },
@@ -496,9 +497,20 @@ const Sound = {
   unlock() { // muss in einer Nutzeraktion passieren (iOS)
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!this.ctx && AC) this.ctx = new AC();
-    // „ambient": Töne mischen sich über laufende Musik, statt sie zu stoppen (nicht überall unterstützt)
-    try { if (navigator.audioSession) navigator.audioSession.type = settings.mixAudio ? 'ambient' : 'auto'; } catch { /* egal */ }
+    // „playback": Töne kommen auch bei aktivem Stummschalter, laufende Musik pausiert.
+    // „ambient": Töne mischen sich über die Musik, folgen aber dem Stummschalter.
+    const session = navigator.audioSession;
+    if (session) {
+      try { session.type = settings.mixAudio ? 'ambient' : 'playback'; } catch { /* egal */ }
+    } else if (!settings.mixAudio) { // älteres iOS: eine lautlose Endlosschleife hebt den Stummschalter auf
+      this.el ||= Object.assign(new Audio('data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA'), { loop: true });
+      this.el.play().catch(() => {});
+    }
     this.ctx?.resume();
+  },
+  release() { // Audio-Sitzung freigeben, damit Musik anderer Apps weiterlaufen kann
+    this.el?.pause();
+    try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch { /* egal */ }
   },
   beep(freq = 880, dur = 0.12, delay = 0) { // weicher Glockenton: Grundton plus zwei leise Obertöne
     if (!settings.sound || !this.ctx) return;
@@ -704,6 +716,7 @@ function finish() {
 function closeWorkout() {
   clearInterval(W.timer);
   W.running = false;
+  Sound.release();
   releaseWakeLock();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   $('#workout').hidden = true;

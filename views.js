@@ -406,6 +406,6 @@ function renderProfile() {
       <button class="btn ghost" data-act="reset-plan">${T.profile.resetPlan}</button>
       <button class="btn danger" data-act="reset-progress">${T.profile.resetProgress}</button>
       <button class="btn danger" data-act="reset-all">${T.profile.resetAll}</button></details>
-    <p class="muted small center">${T.profile.version(SCHEMA)}</p>`;
+    <p class="muted small center">${T.profile.version(VERSION, SCHEMA)}</p>`;
   return { title: T.tabs.profil };
 }
