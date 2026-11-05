@@ -384,9 +384,7 @@ const ACT = {
     Sound.unlock();
     Sound.beep(660, 0.5);
     Sound.beep(990, 0.7, 0.14);
-    $('#sound-info').textContent = T.profile.soundInfo(Sound.ctx?.state, navigator.audioSession?.type, settings.sound);
-    setTimeout(() => Sound.release(), 2000);
-  },
+    $('#sound-info').textContent = T.profile.soundInfo(Sound.ctx?.state, navigator.audioSession?.type, settings.sound);  },
   shuffle: () => { if (confirm(T.confirm.shuffle)) { shufflePlan(); render(); } },
   'reset-plan': () => { if (confirm(T.confirm.resetPlan)) { plan = structuredClone(DEFAULT_PLAN); savePlan(); render(); } },
   'reset-progress': () => {
@@ -493,8 +491,8 @@ const route = () => render(true);
 
 // ---------- Ton, Sprache, Bildschirm-Sperre ----------
 const Sound = {
-  ctx: null,
-  unlock() { // muss in einer Nutzeraktion passieren (iOS)
+  ctx: null, until: 0, timer: 0,
+  engage() { // Audio-Sitzung belegen; beim ersten Mal nur in einer Nutzeraktion möglich (iOS)
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!this.ctx && AC) this.ctx = new AC();
     // „playback": Töne kommen auch bei aktivem Stummschalter, laufende Musik pausiert.
@@ -508,13 +506,22 @@ const Sound = {
     }
     this.ctx?.resume();
   },
+  unlock() { this.engage(); this.hold(0.5); },
+  /** Sitzung nur so lange halten, wie ein Ton klingt; danach freigeben, damit Spotify sofort weiterspielt. */
+  hold(secs) {
+    this.until = Math.max(this.until, Date.now() + secs * 1000);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.release(), this.until - Date.now());
+  },
   release() { // Audio-Sitzung freigeben, damit Musik anderer Apps weiterlaufen kann
     this.el?.pause();
     try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch { /* egal */ }
   },
   beep(freq = 880, dur = 0.12, delay = 0) { // weicher Glockenton: Grundton plus zwei leise Obertöne
     if (!settings.sound || !this.ctx) return;
-    const t = this.ctx.currentTime + delay, gain = this.ctx.createGain();
+    this.engage();
+    this.hold(delay + dur + 0.3);
+    const t = this.ctx.currentTime + delay + 0.08, gain = this.ctx.createGain(); // 80 ms Vorlauf, bis die Sitzung steht
     gain.gain.setValueAtTime(0.0001, t);
     gain.gain.exponentialRampToValueAtTime(0.3, t + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
