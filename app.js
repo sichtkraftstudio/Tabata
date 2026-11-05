@@ -19,7 +19,8 @@ const LEVELS = {
 const levelOf = () => Object.keys(LEVELS).find((k) => Object.keys(LEVELS[k]).every((f) => settings[f] === LEVELS[k][f]));
 const DEFAULT_PROFILE ={ name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
 
-const EX = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
+const EX = Object.fromEntries([...EXERCISES, RUN, ...STRETCHES].map((e) => [e.id, e])); // auch feste Abläufe, damit der Verlauf sie findet
+const groupName = (g) => GROUPS[g] || T.mode[g]?.name || '';
 const $ = (sel) => document.querySelector(sel);
 const view = $('#view');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -135,7 +136,8 @@ function stats() {
   };
 }
 
-const workoutSecs = (n) => PREP + n * (settings.rounds * settings.work + (settings.rounds - 1) * settings.rest) + (n - 1) * settings.restBetween;
+const secsOf = (phases) => phases.reduce((s, p) => s + (p.dur || p.est || 0), 0);
+const workoutSecs = (n) => secsOf(buildPhases(Array(n).fill(0))); // Tabata mit n Übungen
 
 // ---------- Gewicht / Bandstärke pro Übung ----------
 const loadKind = (ex) => (ex.equipment.some((k) => k.startsWith('band')) ? 'band'
@@ -176,6 +178,14 @@ function resolveDay(day) {
   });
 }
 
+/** Trainingsart eines Tages (Standard Tabata); Laufen und Dehnen haben einen festen Ablauf statt der Übungsliste. */
+const modeOf = (d) => (T.mode[d.mode] ? d.mode : 'tabata');
+const dayList = (d) => ROUTINES[modeOf(d)] || resolveDay(d).map((r) => r.ex);
+const dayTitle = (d) => T.modeTitle[modeOf(d)] || d.focus;
+const daySecs = (d) => secsOf(buildPhases(dayList(d), modeOf(d)));
+/** Tage mit eigener Übungsliste (Tabata, Kraft) – nur sie zählen bei Wiederholungen und Regeln. */
+const hasList = (d) => d.type === 'training' && !ROUTINES[modeOf(d)];
+
 // ---------- Plan: mischen, bearbeiten, prüfen ----------
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -184,10 +194,18 @@ function focusOf(ids) {
   const count = {};
   ids.map((id) => EX[id]).filter((e) => e && category(e.group) === 'oben').forEach((e) => { count[e.group] = (count[e.group] || 0) + 1; });
   const top = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 2).map((g) => GROUPS[g]);
+  if (ids.filter((id) => EX[id]?.group === 'bauch').length >= 4) return `${GROUPS.bauch} & ${top[0] || GROUPS.arme}`;
   return (top.length > 1 ? top : [...top, GROUPS.arme]).join(' & ');
 }
 
-/** 8 Übungen: 2 Arme, 2 Bauch, 4 Oberkörper – möglichst ohne Wiederholung innerhalb der Woche. */
+// Verteilung der 8 Übungen je Ziel: [Oberkörper, Arme, Bauch]
+const MIX = { beide: [4, 2, 2], oberkoerper: [5, 3, 0], bauch: [3, 0, 5] };
+const goalKey = () => {
+  const g = profile.goals;
+  return g.oberkoerper && !g.bauch ? 'oberkoerper' : g.bauch && !g.oberkoerper ? 'bauch' : 'beide';
+};
+
+/** 8 Übungen nach Ziel (Standard: 4 Oberkörper, 2 Arme, 2 Bauch) – möglichst ohne Wiederholung innerhalb der Woche. */
 function generateDay(used) {
   const today = new Set();
   const pool = (cat) => {
@@ -204,8 +222,9 @@ function generateDay(used) {
     }
     return pool(cats[0])[0];
   };
-  const arms = [take(['arme']), take(['arme'])], abs = [take(['bauch']), take(['bauch'])];
-  const lists = [[0, 1, 2, 3].map(() => take(['oben', 'arme'])), arms, abs];
+  const [nUpper, nArms, nAbs] = MIX[goalKey()];
+  const arms = Array.from({ length: nArms }, () => take(['arme'])), abs = Array.from({ length: nAbs }, () => take(['bauch']));
+  const lists = [Array.from({ length: nUpper }, () => take(['oben', 'arme'])), arms, abs];
   const out = [];
   while (lists.some((l) => l.length)) lists.forEach((l) => l.length && out.push(l.shift())); // abwechselnd mischen
   const ids = out.map((e) => e.id);
@@ -218,10 +237,35 @@ function shufflePlan() {
   savePlan();
 }
 
+// ---------- Einrichtung: Ziel, Ort, Erfahrung → Equipment, Timer und Wochenplan ----------
+const PLACES = {
+  zuhause: { stuhl: true, matte: true, kurzhanteln: true, dumbbell: true, bandKurz: true, bandLang: true },
+  studio: { stuhl: true, matte: true, kurzhanteln: true, dumbbell: true, bandKurz: false, bandLang: false },
+  outdoor: { stuhl: true, matte: false, kurzhanteln: false, dumbbell: false, bandKurz: true, bandLang: true },
+};
+const EXPERIENCE = { anfaenger: 'leicht', geuebt: 'mittel', fortgeschritten: 'schwer' };
+const DEFAULT_SETUP = { goal: 'beide', place: 'zuhause', level: 'geuebt', mix: 'mix' };
+const MIX_CYCLE = ['tabata', 'kraft', 'lauf', 'tabata', 'dehnen']; // Trainingsarten der Reihe nach über die Trainingstage
+const setup = { ...DEFAULT_SETUP };
+
+function applySetup() {
+  profile.goals = { oberkoerper: setup.goal !== 'bauch', bauch: setup.goal !== 'oberkoerper' };
+  profile.setup = { ...setup };
+  saveProfile();
+  Object.assign(settings, LEVELS[EXPERIENCE[setup.level]]);
+  settings.equipment = { ...settings.equipment, ...PLACES[setup.place] };
+  saveSettings();
+  let t = 0;
+  plan.forEach((d) => { if (d.type === 'training') d.mode = setup.mix === 'nur' ? 'tabata' : MIX_CYCLE[t++ % MIX_CYCLE.length]; });
+  shufflePlan();
+}
+
+/** type: 'rest' oder eine Trainingsart (Schlüssel aus T.mode). */
 function setDayType(i, type) {
   const day = plan[i];
-  day.type = type;
-  if (type === 'training' && !day.exercises.length) { // neuer Trainingstag → Übungen erzeugen
+  day.type = type === 'rest' ? 'rest' : 'training';
+  if (day.type === 'training') day.mode = type;
+  if (day.type === 'training' && !day.exercises.length) { // neuer Trainingstag → Übungen erzeugen
     Object.assign(day, generateDay(new Set(plan.flatMap((d) => (d.type === 'training' ? d.exercises : [])))));
   }
   savePlan();
@@ -240,18 +284,18 @@ function moveExercise(i, pos, dir) {
 }
 function swapDays(i, j) { [plan[i], plan[j]] = [plan[j], plan[i]]; savePlan(); }
 
-/** Regel: mindestens 2 Arm- und 2 Bauchübungen pro Trainingstag. */
+/** Regel: je nach Ziel mindestens 2 Arm- und 2 Bauchübungen pro Trainingstag. */
 function dayIssues(day) {
-  if (day.type !== 'training') return [];
+  if (!hasList(day)) return [];
   const n = (g) => day.exercises.filter((id) => EX[id]?.group === g).length, out = [];
-  if (n('arme') < 2) out.push(T.rules.fewArms(n('arme')));
-  if (n('bauch') < 2) out.push(T.rules.fewAbs(n('bauch')));
+  if (profile.goals.oberkoerper && n('arme') < 2) out.push(T.rules.fewArms(n('arme')));
+  if (profile.goals.bauch && n('bauch') < 2) out.push(T.rules.fewAbs(n('bauch')));
   return out;
 }
 /** Übungen, die an mehreren Trainingstagen vorkommen: [[id, [Tagesindizes]], …] */
 function duplicates() {
   const seen = {};
-  plan.forEach((d, i) => d.type === 'training' && new Set(d.exercises).forEach((id) => (seen[id] ??= []).push(i)));
+  plan.forEach((d, i) => hasList(d) && new Set(d.exercises).forEach((id) => (seen[id] ??= []).push(i)));
   return Object.entries(seen).filter(([, days]) => days.length > 1);
 }
 
@@ -305,7 +349,7 @@ function loadForm(ex) {
 
 function openSheet(id) {
   const ex = EX[id];
-  showSheet(`<h2>${esc(ex.name)}</h2><p class="muted">${GROUPS[ex.group]}</p>
+  showSheet(`<h2>${esc(ex.name)}</h2><p class="muted">${groupName(ex.group)}</p>
     <div class="equip-list">${equipChips(ex)}</div><p>${esc(ex.desc)}</p>
     ${ex.tip ? `<p class="tip">${esc(ex.tip)}</p>` : ''}${loadForm(ex)}`);
 }
@@ -314,7 +358,7 @@ function openLog(i) {
   const e = log[i], list = (e.ex || []).map((id) => EX[id]).filter(Boolean);
   const date = parseKey(e.key).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   showSheet(`<h2>${esc(e.focus || T.workout)}</h2>
-    <p class="muted">${date} · ${T.min(mins(e.secs))} · ${T.exercises(list.length)}</p>
+    <p class="muted">${date} · ${T.min(mins(e.secs))}${e.mode === 'lauf' ? '' : ` · ${T.exercises(list.length)}`}</p>
     ${list.length ? `<ul class="exlist left">${list.map((ex, n) => exRow({ ex }, n, true)).join('')}</ul>
       <button class="btn primary wide" data-act="repeat" data-i="${i}">${T.again}</button>` : ''}`);
 }
@@ -362,7 +406,7 @@ const ACT = {
   repeat: (el) => {
     const e = log[+el.dataset.i];
     closeDialogs();
-    startWorkout((e.ex || []).map((id) => EX[id]).filter(Boolean), { day: e.day, title: e.focus || T.workout, label: e.focus, kind: e.kind });
+    startWorkout((e.ex || []).map((id) => EX[id]).filter(Boolean), { day: e.day, title: e.focus || T.workout, label: e.focus, kind: e.kind, mode: e.mode });
   },
   'lib-filter': (el) => { lib[el.dataset.k] = el.dataset.v; render(); },
   'pick-filter': (el) => { pick[el.dataset.k] = el.dataset.v; renderPicker(); },
@@ -380,6 +424,9 @@ const ACT = {
   },
   'reminder-clear': () => { settings.reminder = ''; saveSettings(); render(); },
   level: (t) => { Object.assign(settings, LEVELS[t.dataset.v]); saveSettings(); render(); },
+  'setup-start': () => { Object.assign(setup, DEFAULT_SETUP, profile.setup); location.hash = '#/profil/einrichtung'; },
+  'setup-pick': (t) => { setup[t.dataset.k] = t.dataset.v; render(); },
+  'setup-apply': () => { if (confirm(T.setup.confirm)) { applySetup(); location.hash = '#/start'; } },
   'sound-test': () => { // Startton abspielen und Audio-Zustand anzeigen
     Sound.unlock();
     Sound.beep(660, 0.5);
@@ -552,28 +599,43 @@ const W = { list: [], phases: [], i: 0, endAt: 0, left: 0, running: false, timer
 const wo = (id) => document.getElementById('wo-' + id);
 const RING = 2 * Math.PI * 54;
 
-/** Ablauf: Vorbereitung, je Übung Runden aus Belastung/Pause, dazwischen lange Pause mit Vorschau. */
-function buildPhases(list) {
-  const s = settings, out = [{ type: 'prep', dur: PREP, ex: 0 }];
+// Kraft und Laufen richten sich nach der Schwierigkeit (Profil), bei eigenen Timer-Werten gilt „mittel"
+const KRAFT = { leicht: { sets: 2, reps: 10, rest: 60 }, mittel: { sets: 3, reps: 12, rest: 60 }, schwer: { sets: 4, reps: 12, rest: 45 } };
+const LAUF = { leicht: { n: 6, run: 60, walk: 120 }, mittel: { n: 8, run: 60, walk: 60 }, schwer: { n: 8, run: 120, walk: 60 } };
+const DEHNEN_HOLD = 45, DEHNEN_SWITCH = 10; // Sekunden
+const SET_EST = 40;   // geschätzte Dauer eines Kraftsatzes für Zeitangaben und Fortschrittsbalken
+
+/** Ablauf: Vorbereitung, je Übung n Durchgänge aus Belastung/Pause, dazwischen Pause mit Vorschau.
+ *  Kraftsätze sind manuell (dur 0): Sie enden mit „Satz fertig" statt mit dem Timer. */
+function buildPhases(list, mode = 'tabata') {
+  const s = settings, lvl = levelOf() || 'mittel', k = KRAFT[lvl], l = LAUF[lvl];
+  const spec = {
+    tabata: { n: s.rounds, work: { dur: s.work }, rest: s.rest, gap: s.restBetween },
+    kraft: { n: k.sets, work: { dur: 0, manual: true, reps: k.reps, est: SET_EST }, rest: k.rest, gap: s.restBetween },
+    lauf: { n: l.n, work: { dur: l.run }, rest: l.walk, gap: 0 },
+    dehnen: { n: 1, work: { dur: DEHNEN_HOLD }, rest: 0, gap: DEHNEN_SWITCH },
+  }[mode];
+  const out = [{ type: 'prep', dur: PREP, ex: 0 }];
   list.forEach((_, e) => {
-    for (let r = 1; r <= s.rounds; r++) {
-      out.push({ type: 'work', dur: s.work, ex: e, round: r });
-      if (r < s.rounds && s.rest > 0) out.push({ type: 'rest', dur: s.rest, ex: e, round: r });
+    for (let r = 1; r <= spec.n; r++) {
+      out.push({ type: 'work', ex: e, round: r, of: spec.n, ...spec.work });
+      if (r < spec.n && spec.rest > 0) out.push({ type: 'rest', dur: spec.rest, ex: e, round: r, of: spec.n });
     }
-    if (e < list.length - 1 && s.restBetween > 0) out.push({ type: 'break', dur: s.restBetween, ex: e + 1 });
+    if (e < list.length - 1 && spec.gap > 0) out.push({ type: 'break', dur: spec.gap, ex: e + 1 });
   });
   return out;
 }
 
 /** Trainingstag aus dem Plan starten. */
-const startDay = (i) => startWorkout(resolveDay(plan[i]).map((r) => r.ex), { day: i, title: T.days[i], label: plan[i].focus, kind: 'plan' });
+const startDay = (i) => startWorkout(dayList(plan[i]), { day: i, title: T.days[i], label: dayTitle(plan[i]), kind: 'plan', mode: modeOf(plan[i]) });
 
-/** meta: { day, title, label, kind } – label landet im Verlauf. */
+/** meta: { day, title, label, kind, mode } – label und mode landen im Verlauf. */
 function startWorkout(list, meta) {
   if (!list.length) return;
-  Object.assign(W, { meta, list, phases: buildPhases(list), i: 0, running: false, finished: false, startedAt: 0, shown: null, lastSec: 0 });
+  meta.mode = T.mode[meta.mode] ? meta.mode : 'tabata';
+  Object.assign(W, { meta, list, phases: buildPhases(list, meta.mode), i: 0, running: false, finished: false, startedAt: 0, shown: null, lastSec: 0 });
   // Fortschrittsbalken: ein Segment pro Übung, gefüllt nach Belastungs- und Pausenzeit
-  W.total = list.map((_, e) => W.phases.reduce((s, p) => s + ((p.type === 'work' || p.type === 'rest') && p.ex === e ? p.dur : 0), 0));
+  W.total = list.map((_, e) => W.phases.reduce((s, p) => s + ((p.type === 'work' || p.type === 'rest') && p.ex === e ? phaseWeight(p) : 0), 0));
   wo('bar').innerHTML = list.map(() => '<i><b></b></i>').join('');
   W.left = W.phases[0].dur * 1000;
   $('#workout').hidden = false;
@@ -586,9 +648,10 @@ function startWorkout(list, meta) {
 function showPhase() {
   const ph = W.phases[W.i], ex = W.list[ph.ex];
   $('#workout').dataset.phase = ph.type;
-  wo('phase').textContent = T.phase[ph.type];
-  wo('ex').textContent = T.wo.exOf(ph.ex + 1, W.list.length);
-  wo('round').textContent = ph.round ? T.wo.roundOf(ph.round, settings.rounds) : ph.type === 'prep' ? T.wo.soon : T.wo.nextEx;
+  const mode = W.meta.mode;
+  wo('phase').textContent = T.phaseBy[mode]?.[ph.type] || T.phase[ph.type];
+  wo('ex').textContent = W.list.length > 1 ? T.wo.exOf(ph.ex + 1, W.list.length) : '';
+  wo('round').textContent = ph.of > 1 ? (mode === 'kraft' ? T.wo.setOf : T.wo.roundOf)(ph.round, ph.of) : ph.type === 'prep' ? T.wo.soon : ph.type === 'break' ? T.wo.nextEx : '';
   if (W.shown !== ex.id) { // Name, Beschreibung und Equipment nur bei Übungswechsel neu setzen
     W.shown = ex.id;
     wo('name').textContent = ex.name;
@@ -597,10 +660,12 @@ function showPhase() {
   }
 }
 
+const phaseWeight = (p) => p.dur || p.est || 0;
+
 function drawBar(rem) {
-  const segs = wo('bar').children, part = W.phases[W.i].dur - Math.max(0, rem) / 1000, spent = [];
+  const segs = wo('bar').children, ph = W.phases[W.i], part = ph.manual ? 0 : ph.dur - Math.max(0, rem) / 1000, spent = [];
   W.phases.forEach((p, k) => {
-    if (p.type === 'work' || p.type === 'rest') spent[p.ex] = (spent[p.ex] || 0) + (k < W.i ? p.dur : k === W.i ? part : 0);
+    if (p.type === 'work' || p.type === 'rest') spent[p.ex] = (spent[p.ex] || 0) + (k < W.i ? phaseWeight(p) : k === W.i ? part : 0);
   });
   W.total.forEach((total, e) => { segs[e].firstChild.style.transform = `scaleX(${Math.min(1, (spent[e] || 0) / total)})`; });
 }
@@ -608,19 +673,27 @@ function drawBar(rem) {
 function drawTime(rem) {
   drawBar(rem);
   const ph = W.phases[W.i];
+  if (ph.manual) { // Kraftsatz: Ring voll, statt der Zeit stehen die Wiederholungen darin
+    wo('time').textContent = ph.reps;
+    wo('ring').style.strokeDashoffset = 0;
+    $('#workout').classList.remove('warn');
+    return;
+  }
   wo('time').textContent = Math.max(0, Math.ceil(rem / 1000));
   wo('ring').style.strokeDashoffset = RING * (1 - Math.max(0, rem) / (ph.dur * 1000));
   $('#workout').classList.toggle('warn', ph.type === 'work' && rem <= 3000);
 }
 
 function updateToggle() {
-  wo('toggle').textContent = W.finished ? T.wo.finish : W.running ? T.wo.pause : W.startedAt ? T.wo.resume : T.wo.start;
+  const setRunning = W.running && W.phases[W.i].manual; // im Kraftsatz beendet der Button den Satz
+  wo('toggle').textContent = W.finished ? T.wo.finish : setRunning ? T.wo.setDone : W.running ? T.wo.pause : W.startedAt ? T.wo.resume : T.wo.start;
   wo('skip').disabled = W.finished;
 }
 
 function enterPhase() {
   const ph = W.phases[W.i];
   showPhase();
+  if (ph.manual) drawTime(0); // kein Timer, der den Satz zeichnet
   if (ph.type === 'work') {
     Sound.beep(660, 0.5); Sound.beep(990, 0.7, 0.14); // aufsteigend: los
     if (ph.round === 1) say(T.say.go);
@@ -628,6 +701,7 @@ function enterPhase() {
     Sound.beep(660, 0.5); Sound.beep(440, 0.7, 0.14); // absteigend: Pause
     if (ph.type === 'break') say(T.say.next(W.list[ph.ex].name));
   }
+  updateToggle();
 }
 
 /** Nächste Phase; Endzeit wird fortgeschrieben, damit der Timer nicht driftet. */
@@ -643,9 +717,10 @@ function advance(fromNow) {
 }
 
 function tick() {
+  if (W.phases[W.i].manual) return; // Kraftsatz wartet auf „Satz fertig"
   let rem = W.endAt - Date.now();
   while (rem <= 0) { // holt auch Phasen nach, wenn die App im Hintergrund war
-    if (!advance(false)) return;
+    if (!advance(false) || W.phases[W.i].manual) return;
     rem = W.endAt - Date.now();
   }
   const sec = Math.ceil(rem / 1000);
@@ -691,7 +766,7 @@ function finish() {
   const key = dayKey(new Date()), prev = done[key];
   done[key] = { day: W.meta.day, secs: (prev?.secs || 0) + secs, count: (prev?.count || 0) + 1 };
   store.set('done', done);
-  log.push({ key, ts: Date.now(), day: W.meta.day, focus: W.meta.label || '', secs, n: 1, ex: W.list.map((e) => e.id), kind: W.meta.kind });
+  log.push({ key, ts: Date.now(), day: W.meta.day, focus: W.meta.label || '', secs, n: 1, ex: W.list.map((e) => e.id), kind: W.meta.kind, mode: W.meta.mode });
   store.set('log', log);
 
   $('#workout').dataset.phase = 'done';
@@ -730,7 +805,12 @@ function abortWorkout() {
   else if (wasRunning) resume();
 }
 
-wo('toggle').addEventListener('click', () => (W.finished ? closeWorkout() : W.running ? pause() : resume()));
+wo('toggle').addEventListener('click', () => {
+  if (W.finished) closeWorkout();
+  else if (!W.running) resume();
+  else if (W.phases[W.i].manual) advance(true); // Satz fertig
+  else pause();
+});
 wo('skip').addEventListener('click', skip);
 wo('abort').addEventListener('click', abortWorkout);
 wo('close').addEventListener('click', abortWorkout);

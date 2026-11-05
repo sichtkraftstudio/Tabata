@@ -55,13 +55,34 @@ const T = {
   plan: {
     reminder: 'Erinnerung', reminderTime: 'Uhrzeit', reminderClear: 'Löschen',
     reminderNote: 'Die Erinnerung erscheint als Hinweis auf der Startseite. iPhone und iPad erlauben Web-Apps nur eingeschränkt Benachrichtigungen, daher gibt es keine Push-Meldung.',
-    dayType: 'Tagestyp', training: 'Training', swap: 'Tag tauschen mit', swapBtn: 'Tauschen',
+    dayType: 'Tagestyp', swap: 'Tag tauschen mit', swapBtn: 'Tauschen',
     alsoOn: (s) => `Auch am ${s}`, noEquipNow: 'Equipment aus, wird im Training ersetzt',
     replace: 'Ersetzen ›', up: 'Nach oben', down: 'Nach unten',
   },
 
+  setup: {
+    title: 'Einrichtung', intro: 'Vier Fragen, dann stellt die App Wochenplan, Equipment und Timer für dich ein.',
+    goalQ: 'Was ist dein Ziel?', goals: { beide: 'Oberkörper und Bauch', oberkoerper: 'Oberkörper', bauch: 'Bauch' },
+    placeQ: 'Wo trainierst du?', places: { zuhause: 'Zuhause', studio: 'Fitnessstudio', outdoor: 'Draußen' },
+    levelQ: 'Wie viel Erfahrung hast du?', levels: { anfaenger: 'Anfänger', geuebt: 'Geübt', fortgeschritten: 'Fortgeschritten' },
+    mixQ: 'Wie abwechslungsreich?', mixes: { mix: 'Gemischt', nur: 'Nur Tabata' },
+    note: 'Der Ort wählt das passende Equipment. „Gemischt" wechselt in der Woche zwischen Tabata, Kraft, Laufen und Dehnen. Alles lässt sich danach ändern.',
+    apply: 'Plan erstellen', startCard: 'Plan an dich anpassen · 4 Fragen', redo: 'Einrichtung neu starten',
+    confirm: 'Dein Wochenplan wird neu erstellt. Fortfahren?',
+  },
+
+  // Trainingsarten: Schlüssel = plan[i].mode (Standard tabata), lauf und dehnen sind feste Abläufe
+  mode: {
+    tabata: { name: 'Tabata', hint: 'Kurze, harte Intervalle mit kurzen Pausen.' },
+    kraft: { name: 'Kraft', hint: 'Sätze mit Wiederholungen. Nach jedem Satz tippst du auf „Satz fertig".' },
+    lauf: { name: 'Laufen', hint: 'Laufen und Gehen im Wechsel, draußen oder auf dem Laufband.' },
+    dehnen: { name: 'Dehnen', hint: 'Acht Dehnübungen zum Lockern, jede 45 Sekunden halten.' },
+  },
+  modeTitle: { lauf: 'Lauf-Intervalle', dehnen: 'Dehnen & Mobilisation' },
+  phaseBy: { kraft: { work: 'Wiederholungen' }, lauf: { work: 'Laufen', rest: 'Gehen' }, dehnen: { work: 'Halten' } },
+
   level: {
-    title: 'Schwierigkeit', hint: 'Legt Belastung, Pause und Runden fest. Eigene Werte stellst du unter Timer ein.',
+    title: 'Schwierigkeit', hint: 'Legt Belastung, Pause und Runden fest, außerdem Sätze beim Kraft- und Intervalle beim Lauftraining. Eigene Werte stellst du unter Timer ein.',
     names: { leicht: 'Leicht', mittel: 'Mittel', schwer: 'Schwer' }, custom: 'Eigene Werte',
     sum: (s) => `${s.work} s Belastung · ${s.rest} s Pause · ${s.rounds} Runden`,
   },
@@ -171,10 +192,11 @@ const T = {
   phase: { prep: 'Bereit machen', work: 'Belastung', rest: 'Pause', break: 'Pause · Als Nächstes' },
   wo: {
     exOf: (n, total) => `Übung ${n} von ${total}`, roundOf: (r, total) => `Runde ${r} von ${total}`,
+    setOf: (r, total) => `Satz ${r} von ${total}`,
     soon: 'Gleich geht es los', nextEx: 'Nächste Übung',
-    start: 'Start', pause: 'Pause', resume: 'Weiter', finish: 'Fertig',
+    start: 'Start', pause: 'Pause', resume: 'Weiter', finish: 'Fertig', setDone: 'Satz fertig',
     doneTitle: 'Geschafft!', doneName: 'Training abgeschlossen',
-    doneDesc: (n, m) => `${n} Übungen in ${m} Minuten. Stark!`,
+    doneDesc: (n, m) => (n > 1 ? `${n} Übungen in ${m} Minuten. Stark!` : `${m} Minuten. Stark!`),
   },
   say: {
     go: 'Los', start: (name) => `Los geht es. Erste Übung: ${name}`, next: (name) => `Pause. Als Nächstes: ${name}`,

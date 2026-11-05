@@ -202,7 +202,26 @@ const EXERCISES = [
   },
 ];
 
-/* Wochenplan: Index 0 = Montag … 6 = Sonntag. type 'training' oder 'rest'. */
+/* Feste Abläufe für Laufen und Dehnen: nicht in der Übungsbibliothek, aber im Verlauf auffindbar (EX in app.js).
+ * Kraft nutzt dieselben Übungen wie Tabata. group 'lauf' / 'dehnen' entspricht dem Schlüssel in T.mode. */
+const RUN = {
+  id: 'lauf', name: 'Laufen & Gehen', group: 'lauf', equipment: [],
+  desc: 'Locker laufen, in den Pausen zügig gehen – im Wechsel, so wie es der Timer vorgibt.',
+  tip: 'Du solltest dich beim Laufen noch unterhalten können.',
+};
+const STRETCHES = [
+  { id: 'dehnBrust', name: 'Brust öffnen', desc: 'Hände hinter dem Rücken verschränken, Arme anheben und die Brust weit öffnen.' },
+  { id: 'dehnSchulter', name: 'Schulter dehnen', desc: 'Einen Arm quer vor die Brust ziehen und halten, nach der Hälfte die Seite wechseln.' },
+  { id: 'dehnTrizeps', name: 'Trizeps dehnen', desc: 'Ellbogen hinter den Kopf, mit der anderen Hand sanft drücken, nach der Hälfte die Seite wechseln.' },
+  { id: 'dehnNacken', name: 'Nacken lockern', desc: 'Ohr langsam zur Schulter neigen, die andere Schulter locker lassen, nach der Hälfte die Seite wechseln.' },
+  { id: 'dehnKatzeKuh', name: 'Katze und Kuh', desc: 'Im Vierfüßlerstand den Rücken abwechselnd rund und hohl machen, ruhig atmen.' },
+  { id: 'dehnKind', name: 'Kindhaltung', desc: 'Gesäß auf die Fersen setzen, Arme nach vorn strecken, Stirn ablegen und tief atmen.' },
+  { id: 'dehnHueftbeuger', name: 'Hüfte dehnen', desc: 'Ausfallschritt, hinteres Knie am Boden, Hüfte nach vorn schieben, nach der Hälfte die Seite wechseln.' },
+  { id: 'dehnBeinrueck', name: 'Beinrückseite dehnen', desc: 'Im Sitzen ein Bein strecken, mit geradem Rücken nach vorn neigen, nach der Hälfte die Seite wechseln.' },
+].map((e) => ({ group: 'dehnen', equipment: [], ...e }));
+const ROUTINES = { lauf: [RUN], dehnen: STRETCHES };
+
+/* Wochenplan: Index 0 = Montag … 6 = Sonntag. type 'training' oder 'rest'; bei Training optional mode (siehe T.mode, Standard 'tabata'). */
 const DEFAULT_PLAN = [
   { type: 'training', focus: 'Brust & Arme', exercises: ['liegestuetze', 'bizepsCurls', 'crunches', 'trizepsDips', 'brustFliegenBand', 'plank', 'hammerCurls', 'beinhebenLiegend'] },
   { type: 'training', focus: 'Rücken & Bauch', exercises: ['rudernVorgebeugt', 'russianTwists', 'rudernSitzendBand', 'bizepsCurlsBandKurz', 'bicycleCrunches', 'trizepsKickbacks', 'superman', 'mountainClimbers'] },

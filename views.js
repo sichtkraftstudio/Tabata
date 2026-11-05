@@ -36,7 +36,7 @@ function exRow({ ex, replaced, missing }, n, plain = false) {
   return `<li><${tag} class="exrow"${plain ? '' : ` data-act="ex" data-id="${ex.id}"`}>
     <span class="num">${n + 1}</span>
     <span class="exrow-text"><strong>${esc(ex.name)}</strong>
-      <small>${GROUPS[ex.group]} · ${ex.equipment.map((k) => EQUIPMENT[k]).join(', ')}</small>
+      <small>${groupName(ex.group)}${ex.equipment.length ? ` · ${ex.equipment.map((k) => EQUIPMENT[k]).join(', ')}` : ''}</small>
       ${replaced ? `<small class="sub">${T.substituteFor(esc(replaced.name))}</small>` : ''}
       ${missing ? `<small class="miss">${T.noSubstitute}</small>` : ''}
     </span></${tag}></li>`;
@@ -70,7 +70,7 @@ function workoutCard({ title, sub, list, btn, isDone, isToday }) {
       ${isDone ? `<span class="check" role="img" aria-label="${T.done}">${ICON.check}</span>` : ''}</header>
     <div class="eqrow">${equipIcons(uniqueEquip(list))}</div>
     <details><summary>${T.training.allEx}</summary><ul class="exlist slim">${list.map((ex, n) => `<li><button class="exrow" data-act="ex" data-id="${ex.id}">
-      <span class="num">${n + 1}</span><span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${GROUPS[ex.group]}</small></span></button></li>`).join('')}</ul></details>
+      <span class="num">${n + 1}</span><span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${groupName(ex.group)}</small></span></button></li>`).join('')}</ul></details>
     ${btn}</article>`;
 }
 
@@ -83,7 +83,7 @@ function renderStart() {
 
   let hero;
   if (day.type === 'training') {
-    const list = resolveDay(day).map((r) => r.ex);
+    const list = dayList(day), mode = modeOf(day);
     let hint = '';
     if (settings.reminder && !isDone) {
       const late = now.getHours() * 60 + now.getMinutes() >= toMinutes(settings.reminder);
@@ -91,8 +91,9 @@ function renderStart() {
     }
     hero = `<article class="hero">
       <p class="eyebrow">${isDone ? T.start.heroDone : T.start.heroToday}</p>
-      <h2>${esc(day.focus)}</h2>
-      <ul class="meta"><li>${T.minutes(mins(workoutSecs(list.length)))}</li><li>${T.exercises(list.length)}</li><li>${equipIcons(uniqueEquip(list))}</li></ul>
+      <h2>${esc(dayTitle(day))}</h2>
+      <ul class="meta"><li>${T.mode[mode].name}</li><li>${T.minutes(mins(daySecs(day)))}</li>${mode === 'lauf' ? '' : `<li>${T.exercises(list.length)}</li>`}<li>${equipIcons(uniqueEquip(list))}</li></ul>
+      <p class="muted">${T.mode[mode].hint}</p>
       <button class="btn primary big wide" data-act="start-day" data-i="${wd}">${isDone ? T.again : T.start.startBtn}</button>
       ${hint}</article>`;
   } else {
@@ -122,6 +123,7 @@ function renderStart() {
       <h2>${T.greeting(now.getHours())}${name ? `, ${esc(name)}` : ''}</h2></header>
     <p class="quote">${T.quotes[Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5) % T.quotes.length]}</p>
     ${hero}
+    ${profile.setup ? '' : `<button class="btn wide" data-act="setup-start">${T.setup.startCard}</button>`}
     <section><h3 class="sec">${T.start.week}</h3><div class="strip">${strip}</div>${goal}</section>
     <section><h3 class="sec">${T.start.recent}</h3>${recentHtml}</section>`;
   return { title: T.tabs.start };
@@ -146,9 +148,9 @@ function trainWorkouts() {
   const today = weekday(new Date()), dates = weekDates();
   const days = plan.map((d, i) => {
     if (d.type !== 'training') return '';
-    const list = resolveDay(d).map((r) => r.ex);
+    const list = dayList(d);
     return workoutCard({
-      title: d.focus, sub: `${T.days[i]} · ${T.exercises(list.length)} · ${T.minutes(mins(workoutSecs(list.length)))}`, list,
+      title: dayTitle(d), sub: `${T.days[i]} · ${T.mode[modeOf(d)].name} · ${T.minutes(mins(daySecs(d)))}`, list,
       btn: `<button class="btn primary wide" data-act="start-day" data-i="${i}">${T.start.startBtn}</button>`,
       isDone: Boolean(done[dayKey(dates[i])]), isToday: i === today,
     });
@@ -173,7 +175,7 @@ function trainPlans() {
         <button class="btn ghost" data-act="plan-rename" data-id="${p.id}">${T.plans.rename}</button>
         ${active ? '' : `<button class="btn danger" data-act="plan-delete" data-id="${p.id}">${T.plans.delete}</button>`}</div></li>`;
   }).join('');
-  const overview = plan.map((d, i) => `<li><span class="muted">${T.daysShort[i]}</span> ${d.type === 'rest' ? `<span class="muted">${T.rest.short}</span>` : esc(d.focus)}</li>`).join('');
+  const overview = plan.map((d, i) => `<li><span class="muted">${T.daysShort[i]}</span> ${d.type === 'rest' ? `<span class="muted">${T.rest.short}</span>` : esc(dayTitle(d))}</li>`).join('');
   return `<section class="panel"><h3>${T.plans.current}: ${esc(planName())}</h3>
       <ul class="plain">${overview}</ul>
       <div class="stack"><a class="btn" href="#/wochenplan">${T.plans.edit}</a>
@@ -187,7 +189,7 @@ function trainPlans() {
 // TAB WOCHENPLAN (Übersicht + Tag bearbeiten)
 // =====================================================================
 const pick = { day: 0, pos: 0, group: 'alle', equip: 'alle', q: '' };
-const otherDays = (id, i) => plan.map((d, j) => (j !== i && d.type === 'training' && d.exercises.includes(id) ? j : -1)).filter((j) => j >= 0);
+const otherDays = (id, i) => plan.map((d, j) => (j !== i && hasList(d) && d.exercises.includes(id) ? j : -1)).filter((j) => j >= 0);
 
 function renderPlanTab(sub) {
   const i = sub === undefined ? -1 : Number(sub);
@@ -198,13 +200,13 @@ function renderPlanTab(sub) {
     `<li>${esc(EX[id].name)} <span class="muted">(${days.map((d) => T.daysShort[d]).join(', ')})</span></li>`).join('')}</ul></section>` : '';
   const cards = plan.map((d, i) => {
     const head = `<header class="day-head"><div><h2>${T.days[i]}${i === today ? ` <span class="badge">${T.today}</span>` : ''}</h2>
-      <p class="muted">${dates[i].toLocaleDateString('de-DE', { day: 'numeric', month: 'long' })} · ${d.type === 'rest' ? T.rest.short : esc(d.focus)}</p></div>
+      <p class="muted">${dates[i].toLocaleDateString('de-DE', { day: 'numeric', month: 'long' })} · ${d.type === 'rest' ? T.rest.short : `${T.mode[modeOf(d)].name} · ${esc(dayTitle(d))}`}</p></div>
       <span class="chev">${ICON.next}</span></header>`;
     if (d.type === 'rest') return `<a class="day rest daylink" href="#/wochenplan/${i}">${head}</a>`;
     const issues = dayIssues(d);
     return `<a class="day daylink${i === today ? ' today' : ''}" href="#/wochenplan/${i}">${head}
       ${issues.length ? `<ul class="issues">${issues.map((t) => `<li>${t}</li>`).join('')}</ul>` : ''}
-      <p class="names">${resolveDay(d).map(({ ex }) => esc(ex.name)).join(' · ')}</p></a>`;
+      <p class="names">${dayList(d).map((ex) => esc(ex.name)).join(' · ')}</p></a>`;
   }).join('');
 
   view.innerHTML = `
@@ -216,10 +218,10 @@ function renderPlanTab(sub) {
 
 function renderDayEdit(i) {
   const d = plan[i];
+  const cur = d.type === 'rest' ? 'rest' : modeOf(d);
   const typeRow = `<label class="row"><span>${T.plan.dayType}</span><select data-chg="daytype" data-i="${i}">
-    <option value="training"${d.type === 'training' ? ' selected' : ''}>${T.plan.training}</option>
-    <option value="rest"${d.type === 'rest' ? ' selected' : ''}>${T.rest.short}</option></select></label>`;
-  const swapOpts = T.days.map((n, j) => (j === i ? '' : `<option value="${j}">${n} · ${plan[j].type === 'rest' ? T.rest.short : esc(plan[j].focus)}</option>`)).join('');
+    ${[...Object.keys(T.mode), 'rest'].map((k) => `<option value="${k}"${k === cur ? ' selected' : ''}>${k === 'rest' ? T.rest.short : T.mode[k].name}</option>`).join('')}</select></label>`;
+  const swapOpts = T.days.map((n, j) => (j === i ? '' : `<option value="${j}">${n} · ${plan[j].type === 'rest' ? T.rest.short : esc(dayTitle(plan[j]))}</option>`)).join('');
   const swap = `<section class="panel"><h3>${T.plan.swap}</h3><div class="row-inline">
     <select id="swap-target" aria-label="${T.plan.swap}">${swapOpts}</select>
     <button class="btn" data-act="swap" data-i="${i}">${T.plan.swapBtn}</button></div></section>`;
@@ -228,8 +230,8 @@ function renderDayEdit(i) {
     view.innerHTML = `<section class="panel">${typeRow}</section><article class="day rest">${restBody()}</article>${swap}`;
     return { title: T.days[i], back: '#/wochenplan' };
   }
-  const issues = dayIssues(d);
-  const rows = d.exercises.map((id, n) => {
+  const issues = dayIssues(d), mode = modeOf(d), fixed = Boolean(ROUTINES[mode]);
+  const rows = fixed ? '' : d.exercises.map((id, n) => {
     const ex = EX[id], also = otherDays(id, i);
     return `<li class="editrow">
       <button class="exrow" data-act="replace" data-i="${i}" data-n="${n}">
@@ -242,9 +244,10 @@ function renderDayEdit(i) {
       <button class="icon-btn" data-act="move" data-i="${i}" data-n="${n}" data-d="1" aria-label="${T.plan.down}"${n === d.exercises.length - 1 ? ' disabled' : ''}>${ICON.down}</button></li>`;
   }).join('');
   view.innerHTML = `
-    <section class="panel">${typeRow}<p class="muted">${esc(d.focus)} · ${T.exercises(d.exercises.length)} · ${T.minutes(mins(workoutSecs(d.exercises.length)))}</p></section>
+    <section class="panel">${typeRow}<p class="muted">${esc(dayTitle(d))}${fixed ? '' : ` · ${T.exercises(d.exercises.length)}`} · ${T.minutes(mins(daySecs(d)))}</p>
+      <p class="muted small">${T.mode[mode].hint}</p></section>
     ${issues.length ? `<section class="notice"><ul class="plain">${issues.map((t) => `<li>${t}</li>`).join('')}</ul></section>` : ''}
-    <ul class="editlist">${rows}</ul>
+    ${fixed ? `<p class="names">${dayList(d).map((ex) => esc(ex.name)).join(' · ')}</p>` : `<ul class="editlist">${rows}</ul>`}
     ${swap}
     <button class="btn primary big wide" data-act="start-day" data-i="${i}">${T.start.startBtn}</button>`;
   return { title: T.days[i], back: '#/wochenplan' };
@@ -365,10 +368,23 @@ function renderProgress() {
 // =====================================================================
 // TAB PROFIL
 // =====================================================================
-function renderProfile() {
+/** Einrichtung mit drei Fragen (#/profil/einrichtung). */
+function renderSetup() {
+  const question = (title, key, options) => `<section class="panel"><h3>${title}</h3><div class="chips wrap">${Object.entries(options).map(([v, label]) =>
+    `<button class="chip${setup[key] === v ? ' on' : ''}" data-act="setup-pick" data-k="${key}" data-v="${v}">${label}</button>`).join('')}</div></section>`;
+  view.innerHTML = `<p class="muted">${T.setup.intro}</p>
+    ${question(T.setup.goalQ, 'goal', T.setup.goals)}${question(T.setup.placeQ, 'place', T.setup.places)}${question(T.setup.levelQ, 'level', T.setup.levels)}${question(T.setup.mixQ, 'mix', T.setup.mixes)}
+    <p class="muted small">${T.setup.note}</p>
+    <button class="btn primary big wide" data-act="setup-apply">${T.setup.apply}</button>`;
+  return { title: T.setup.title, back: '#/profil' };
+}
+
+function renderProfile(sub) {
+  if (sub === 'einrichtung') return renderSetup();
   const lvl = levelOf();
   const goalToggles = Object.entries(T.goals).map(([k, l]) => toggle(`data-chg="goal" data-k="${k}"`, profile.goals[k], l)).join('');
   view.innerHTML = `
+    <button class="btn wide" data-act="setup-start">${profile.setup ? T.setup.redo : T.setup.startCard}</button>
     <section class="panel"><h3>${T.profile.personal}</h3>
       <label class="row"><span>${T.profile.name}</span>
         <input type="text" class="field" value="${esc(profile.name)}" maxlength="30" autocomplete="given-name" enterkeyhint="done" data-chg="name"></label>

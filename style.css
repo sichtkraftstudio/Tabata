@@ -146,6 +146,7 @@ main {
 /* ---------- Bibliothek ---------- */
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 6px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
 .chip {
   flex: none; min-height: 48px; padding: 0 16px; display: flex; align-items: center; gap: 6px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-weight: 600;
@@ -233,8 +234,8 @@ select { padding: 0 10px; }
   position: absolute; inset: 0; display: grid; place-items: center;
   font-size: clamp(2.8rem, 13vw, 4.6rem); font-weight: 800; font-variant-numeric: tabular-nums;
 }
-.wo-controls { width: 100%; display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; }
-.wo-controls .btn { padding: 0 8px; }
+.wo-controls { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 10px; }
+.wo-controls .btn { padding: 0 14px; white-space: nowrap; }
 
 /* Querformat: Übungsname links, Timer rechts */
 @media (orientation: landscape) and (min-width: 560px) {

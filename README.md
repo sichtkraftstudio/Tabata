@@ -9,7 +9,7 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 | `texts.js` | Alle deutschen Texte an einer Stelle |
 | `views.js` | Die fünf Tabs: Start, Training, Wochenplan, Fortschritt, Profil |
 | `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
-| `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, Standard-Wochenplan |
+| `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, feste Abläufe für Laufen und Dehnen, Standard-Wochenplan |
 | `illustrations.js` | Equipment-Icons |
 | `version.js` | App-Versionsnummer (Anzeige im Profil, Cache-Name) |
 | `service-worker.js` | Offline-Cache |
@@ -57,6 +57,8 @@ Tipps:
 ## Anpassen
 
 **Übungen ändern oder ergänzen:** in `exercises.js` ein Objekt im Array `EXERCISES` bearbeiten oder hinzufügen. Die Felder sind oben in der Datei erklärt.
+
+**Trainingsarten:** Jeder Trainingstag hat eine Art (`mode` im Plan, Standard Tabata): *Tabata*, *Kraft* (Sätze mit Wiederholungen, „Satz fertig" per Tipp), *Laufen* (Lauf-/Gehintervalle) und *Dehnen* (acht Dehnübungen). Sätze, Wiederholungen und Intervalle folgen der Schwierigkeit im Profil (`KRAFT`, `LAUF` in `app.js`). Laufen und Dehnen sind feste Abläufe (`RUN`, `STRETCHES` in `exercises.js`). Die Art stellst du pro Tag im Wochenplan ein oder lässt die Einrichtung die Woche mischen.
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
