@@ -10,7 +10,7 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 | `views.js` | Die fünf Tabs: Start, Training, Wochenplan, Fortschritt, Profil |
 | `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
 | `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, Standard-Wochenplan |
-| `illustrations.js` | Figur-Renderer (Gelenkwinkel → SVG) und Equipment-Icons |
+| `illustrations.js` | Equipment-Icons |
 | `service-worker.js` | Offline-Cache |
 | `manifest.webmanifest`, `icons/` | App-Name, Farben, Icons für den Home-Bildschirm |
 
@@ -55,19 +55,11 @@ Tipps:
 
 ## Anpassen
 
-**Übungen ändern oder ergänzen:** in `exercises.js` ein Objekt im Array `EXERCISES` bearbeiten oder hinzufügen. Das Pose-Format ist oben in der Datei erklärt (Winkel für Torso, Arme, Beine; alternativ `{ ik: [x, y] }`, um eine Hand oder einen Fuß an einen Punkt zu setzen).
-
-**Eigene Bilder statt Illustration:** Bild in einen Ordner `img/` legen und bei der Übung ein Feld ergänzen, z. B.
-
-```js
-{ id: 'liegestuetze', name: 'Liegestütze', image: 'img/liegestuetze.webp', … }
-```
-
-Fehlt die Datei, zeigt die App automatisch wieder die SVG-Illustration. Bilder werden beim ersten Laden für den Offline-Betrieb gecacht.
+**Übungen ändern oder ergänzen:** in `exercises.js` ein Objekt im Array `EXERCISES` bearbeiten oder hinzufügen. Die Felder sind oben in der Datei erklärt.
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 
-**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v5'` hochzählen (`tabata-v6` …).
+**Updates ausrollen:** Geänderte Dateien bei GitHub neu hochladen (beim Hochladen gleiche Namen überschreiben, neue Dateien hinzufügen). Für ein garantiert sauberes Update in `service-worker.js` die Zeile `const CACHE = 'tabata-v8'` hochzählen (`tabata-v9` …).
 
 **Aktualisierte Version auf iPhone und iPad laden:**
 1. Dateien hochladen und ca. 1 Minute warten.

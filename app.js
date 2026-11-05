@@ -6,10 +6,18 @@ const PREP = 10;        // Sekunden „Bereit machen" vor der ersten Übung
 const SCHEMA = 2;       // Version der gespeicherten Daten (siehe migrate())
 const DEFAULT_SETTINGS = {
   work: 20, rest: 10, rounds: 8, restBetween: 60, sound: true, voice: false, keepAwake: true, reminder: '',
-  mixMusic: true, beat: false, bpm: 140,
+  mixMusic: true,
   equipment: Object.fromEntries(Object.keys(EQUIPMENT).map((k) => [k, true])),
 };
-const DEFAULT_PROFILE = { name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
+// Schwierigkeitsstufen: überschreiben Belastung, Pause, Runden und Pause zwischen den Übungen
+const LEVELS = {
+  leicht: { work: 20, rest: 20, rounds: 6, restBetween: 90 },
+  mittel: { work: 20, rest: 10, rounds: 8, restBetween: 60 },
+  schwer: { work: 30, rest: 10, rounds: 8, restBetween: 45 },
+};
+/** Passende Stufe zu den aktuellen Timer-Werten, sonst undefined (eigene Werte). */
+const levelOf = () => Object.keys(LEVELS).find((k) => Object.keys(LEVELS[k]).every((f) => settings[f] === LEVELS[k][f]));
+const DEFAULT_PROFILE ={ name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
 
 const EX = Object.fromEntries(EXERCISES.map((e) => [e.id, e]));
 const $ = (sel) => document.querySelector(sel);
@@ -297,8 +305,7 @@ function loadForm(ex) {
 
 function openSheet(id) {
   const ex = EX[id];
-  showSheet(`<span class="illu big">${illo(ex, true)}</span>
-    <h2>${esc(ex.name)}</h2><p class="muted">${GROUPS[ex.group]}</p>
+  showSheet(`<h2>${esc(ex.name)}</h2><p class="muted">${GROUPS[ex.group]}</p>
     <div class="equip-list">${equipChips(ex)}</div><p>${esc(ex.desc)}</p>
     ${ex.tip ? `<p class="tip">${esc(ex.tip)}</p>` : ''}${loadForm(ex)}`);
 }
@@ -372,6 +379,13 @@ const ACT = {
     location.hash = `#/wochenplan/${target}`; // folgt dem getauschten Tag
   },
   'reminder-clear': () => { settings.reminder = ''; saveSettings(); render(); },
+  level: (t) => { Object.assign(settings, LEVELS[t.dataset.v]); saveSettings(); render(); },
+  'sound-test': () => { // Startton abspielen und Audio-Zustand anzeigen
+    Sound.unlock();
+    Sound.beep(660, 0.5);
+    Sound.beep(990, 0.7, 0.14);
+    $('#sound-info').textContent = T.profile.soundInfo(Sound.ctx?.state, navigator.audioSession?.type, settings.sound);
+  },
   shuffle: () => { if (confirm(T.confirm.shuffle)) { shufflePlan(); render(); } },
   'reset-plan': () => { if (confirm(T.confirm.resetPlan)) { plan = structuredClone(DEFAULT_PLAN); savePlan(); render(); } },
   'reset-progress': () => {
@@ -486,51 +500,21 @@ const Sound = {
     try { if (navigator.audioSession) navigator.audioSession.type = settings.mixMusic ? 'ambient' : 'auto'; } catch { /* egal */ }
     this.ctx?.resume();
   },
-  nextBeat: 0, step: 0,
-  /** Beat nur in Belastungsphasen: Takt wird knapp im Voraus eingeplant (tick läuft alle 100 ms). */
-  beatTick() {
-    const c = this.ctx;
-    if (!c || !settings.sound || !settings.beat || !W.running || W.phases[W.i].type !== 'work') { this.nextBeat = 0; return; }
-    const now = c.currentTime, gap = 30 / settings.bpm; // Achtelnoten
-    if (this.nextBeat < now) { this.nextBeat = now + 0.05; this.step = 0; }
-    for (; this.nextBeat < now + 0.25; this.nextBeat += gap, this.step++) {
-      if (this.step % 2 === 0) this.kick(this.nextBeat); else this.hat(this.nextBeat);
-    }
-  },
-  kick(t) {
-    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-    osc.frequency.setValueAtTime(150, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-    osc.connect(gain).connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + 0.2);
-  },
-  hat(t) {
-    if (!this.noise) { // 0,05 s Rauschen, einmal erzeugt
-      this.noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.05, this.ctx.sampleRate);
-      this.noise.getChannelData(0).forEach((_, i, d) => { d[i] = Math.random() * 2 - 1; });
-    }
-    const src = this.ctx.createBufferSource(), hp = this.ctx.createBiquadFilter(), gain = this.ctx.createGain();
-    src.buffer = this.noise;
-    hp.type = 'highpass';
-    hp.frequency.value = 7000;
-    gain.gain.setValueAtTime(0.2, t);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    src.connect(hp).connect(gain).connect(this.ctx.destination);
-    src.start(t);
-  },
-  beep(freq = 880, dur = 0.12, delay = 0) {
+  beep(freq = 880, dur = 0.12, delay = 0) { // weicher Glockenton: Grundton plus zwei leise Obertöne
     if (!settings.sound || !this.ctx) return;
-    const t = this.ctx.currentTime + delay, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-    osc.frequency.value = freq;
+    const t = this.ctx.currentTime + delay, gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.3, t + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(gain).connect(this.ctx.destination);
-    osc.start(t);
-    osc.stop(t + dur + 0.05);
+    gain.connect(this.ctx.destination);
+    [[1, 1], [2, 0.3], [3, 0.1]].forEach(([mult, amp]) => {
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.frequency.value = freq * mult;
+      g.gain.value = amp;
+      osc.connect(g).connect(gain);
+      osc.start(t);
+      osc.stop(t + dur + 0.05);
+    });
   },
 };
 
@@ -578,6 +562,9 @@ const startDay = (i) => startWorkout(resolveDay(plan[i]).map((r) => r.ex), { day
 function startWorkout(list, meta) {
   if (!list.length) return;
   Object.assign(W, { meta, list, phases: buildPhases(list), i: 0, running: false, finished: false, startedAt: 0, shown: null, lastSec: 0 });
+  // Fortschrittsbalken: ein Segment pro Übung, gefüllt nach Belastungs- und Pausenzeit
+  W.total = list.map((_, e) => W.phases.reduce((s, p) => s + ((p.type === 'work' || p.type === 'rest') && p.ex === e ? p.dur : 0), 0));
+  wo('bar').innerHTML = list.map(() => '<i><b></b></i>').join('');
   W.left = W.phases[0].dur * 1000;
   $('#workout').hidden = false;
   document.body.classList.add('noscroll');
@@ -592,17 +579,24 @@ function showPhase() {
   wo('phase').textContent = T.phase[ph.type];
   wo('ex').textContent = T.wo.exOf(ph.ex + 1, W.list.length);
   wo('round').textContent = ph.round ? T.wo.roundOf(ph.round, settings.rounds) : ph.type === 'prep' ? T.wo.soon : T.wo.nextEx;
-  if (W.shown !== ex.id) { // Illustration nur bei Übungswechsel neu setzen (Animation läuft weiter)
+  if (W.shown !== ex.id) { // Name, Beschreibung und Equipment nur bei Übungswechsel neu setzen
     W.shown = ex.id;
-    wo('illu').innerHTML = illo(ex, true);
     wo('name').textContent = ex.name;
-    wo('desc').textContent = ex.desc;
-    wo('tip').textContent = ex.tip || '';
+    wo('desc').textContent = ex.desc.split('. ')[0].replace(/\.$/, '') + '.'; // nur der erste Satz
     wo('equip').innerHTML = equipChips(ex);
   }
 }
 
+function drawBar(rem) {
+  const segs = wo('bar').children, part = W.phases[W.i].dur - Math.max(0, rem) / 1000, spent = [];
+  W.phases.forEach((p, k) => {
+    if (p.type === 'work' || p.type === 'rest') spent[p.ex] = (spent[p.ex] || 0) + (k < W.i ? p.dur : k === W.i ? part : 0);
+  });
+  W.total.forEach((total, e) => { segs[e].firstChild.style.transform = `scaleX(${Math.min(1, (spent[e] || 0) / total)})`; });
+}
+
 function drawTime(rem) {
+  drawBar(rem);
   const ph = W.phases[W.i];
   wo('time').textContent = Math.max(0, Math.ceil(rem / 1000));
   wo('ring').style.strokeDashoffset = RING * (1 - Math.max(0, rem) / (ph.dur * 1000));
@@ -618,10 +612,10 @@ function enterPhase() {
   const ph = W.phases[W.i];
   showPhase();
   if (ph.type === 'work') {
-    Sound.beep(1320, 0.4);
+    Sound.beep(660, 0.5); Sound.beep(990, 0.7, 0.14); // aufsteigend: los
     if (ph.round === 1) say(T.say.go);
   } else {
-    Sound.beep(660, 0.35);
+    Sound.beep(660, 0.5); Sound.beep(440, 0.7, 0.14); // absteigend: Pause
     if (ph.type === 'break') say(T.say.next(W.list[ph.ex].name));
   }
 }
@@ -645,10 +639,9 @@ function tick() {
     rem = W.endAt - Date.now();
   }
   const sec = Math.ceil(rem / 1000);
-  if (W.lastSec && sec < W.lastSec && sec <= 3) Sound.beep(880, 0.12); // 3, 2, 1
+  if (W.lastSec && sec < W.lastSec && sec <= 3) Sound.beep(784, 0.2); // 3, 2, 1
   W.lastSec = sec;
   drawTime(rem);
-  Sound.beatTick();
 }
 
 function resume() {
@@ -698,11 +691,11 @@ function finish() {
   wo('round').textContent = '';
   wo('name').textContent = T.wo.doneName;
   wo('desc').textContent = T.wo.doneDesc(W.list.length, Math.round(secs / 60));
-  wo('tip').textContent = '';
   wo('equip').innerHTML = '';
   wo('time').textContent = '✓';
   wo('ring').style.strokeDashoffset = 0;
-  [0, 0.2, 0.4].forEach((d) => Sound.beep(1320, 0.15, d));
+  [523, 659, 784, 1047].forEach((f, i) => Sound.beep(f, 0.6, i * 0.15)); // Dur-Akkord aufwärts
+  drawBar(0);
   say(T.say.done);
   releaseWakeLock();
   updateToggle();
@@ -714,7 +707,6 @@ function closeWorkout() {
   releaseWakeLock();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   $('#workout').hidden = true;
-  wo('illu').innerHTML = '';
   document.body.classList.remove('noscroll');
   render();
 }

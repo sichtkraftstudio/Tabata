@@ -16,23 +16,11 @@ const ICON = {
 };
 
 // ---------- Gemeinsame Bausteine ----------
-/** Übungsbild: eigenes Bild (Feld `image`) oder SVG-Illustration. */
-function illo(ex, animate = false) {
-  return ex.image
-    ? `<img src="${esc(ex.image)}" alt="${esc(ex.name)}" data-ex="${ex.id}" data-anim="${animate ? 1 : 0}">`
-    : Illu.svg(ex, { animate });
-}
-document.addEventListener('error', (e) => { // Bild fehlt → SVG anzeigen
-  const img = e.target;
-  if (img.tagName === 'IMG' && img.dataset.ex) img.outerHTML = Illu.svg(EX[img.dataset.ex], { animate: img.dataset.anim === '1' });
-}, true);
-
 const equipChips = (ex) => ex.equipment.map((k) => `<span class="eq">${Illu.icon(k)}${EQUIPMENT[k]}</span>`).join('');
 const equipIcons = (keys) => `<span class="icons" role="img" aria-label="${esc(keys.map((k) => EQUIPMENT[k]).join(', '))}">${keys.map((k) => Illu.icon(k)).join('')}</span>`;
 const uniqueEquip = (list) => [...new Set(list.flatMap((e) => e.equipment))];
 const mins = (secs) => Math.max(1, Math.round(secs / 60));
 const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
-const thumbs = (list, n = 4) => `<div class="thumbs">${list.slice(0, n).map((e) => `<span class="illu thumb">${illo(e)}</span>`).join('')}${list.length > n ? `<span class="more">+${list.length - n}</span>` : ''}</div>`;
 
 /** „Heute", „Gestern" oder „Mo., 2. Nov." für einen Tagesschlüssel. */
 function dateLabel(key) {
@@ -47,7 +35,6 @@ function exRow({ ex, replaced, missing }, n, plain = false) {
   const tag = plain ? 'div' : 'button';
   return `<li><${tag} class="exrow"${plain ? '' : ` data-act="ex" data-id="${ex.id}"`}>
     <span class="num">${n + 1}</span>
-    <span class="illu thumb">${illo(ex)}</span>
     <span class="exrow-text"><strong>${esc(ex.name)}</strong>
       <small>${GROUPS[ex.group]} · ${ex.equipment.map((k) => EQUIPMENT[k]).join(', ')}</small>
       ${replaced ? `<small class="sub">${T.substituteFor(esc(replaced.name))}</small>` : ''}
@@ -71,7 +58,7 @@ const searchBox = (state, name) => `<input type="search" class="search" data-in=
 const exMatches = (s, e) => (s.group === 'alle' || e.group === s.group) && (s.equip === 'alle' || e.equipment.includes(s.equip))
   && e.name.toLowerCase().includes(s.q.trim().toLowerCase());
 const exCard = (e, act, note = '', disabled = false) => `<button class="card-ex${available(e) ? '' : ' na'}" data-act="${act}" data-id="${e.id}"${disabled ? ' disabled' : ''}>
-  <span class="illu">${illo(e)}</span><strong>${esc(e.name)}</strong>
+  <strong>${esc(e.name)}</strong>
   <small class="muted">${GROUPS[e.group]}</small>
   <span class="icons">${e.equipment.map((k) => Illu.icon(k)).join('')}</span>${note ? `<small class="note">${note}</small>` : ''}</button>`;
 
@@ -81,7 +68,6 @@ function workoutCard({ title, sub, list, btn, isDone, isToday }) {
     <header class="day-head"><div>
       <h3>${esc(title)}${isToday ? ` <span class="badge">${T.today}</span>` : ''}</h3><p class="muted">${sub}</p></div>
       ${isDone ? `<span class="check" role="img" aria-label="${T.done}">${ICON.check}</span>` : ''}</header>
-    ${thumbs(list)}
     <div class="eqrow">${equipIcons(uniqueEquip(list))}</div>
     <details><summary>${T.training.allEx}</summary><ul class="exlist slim">${list.map((ex, n) => `<li><button class="exrow" data-act="ex" data-id="${ex.id}">
       <span class="num">${n + 1}</span><span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${GROUPS[ex.group]}</small></span></button></li>`).join('')}</ul></details>
@@ -107,7 +93,6 @@ function renderStart() {
       <p class="eyebrow">${isDone ? T.start.heroDone : T.start.heroToday}</p>
       <h2>${esc(day.focus)}</h2>
       <ul class="meta"><li>${T.minutes(mins(workoutSecs(list.length)))}</li><li>${T.exercises(list.length)}</li><li>${equipIcons(uniqueEquip(list))}</li></ul>
-      ${thumbs(list)}
       <button class="btn primary big wide" data-act="start-day" data-i="${wd}">${isDone ? T.again : T.start.startBtn}</button>
       ${hint}</article>`;
   } else {
@@ -135,6 +120,7 @@ function renderStart() {
   view.innerHTML = `
     <header class="hello"><p class="muted">${now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       <h2>${T.greeting(now.getHours())}${name ? `, ${esc(name)}` : ''}</h2></header>
+    <p class="quote">${T.quotes[Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5) % T.quotes.length]}</p>
     ${hero}
     <section><h3 class="sec">${T.start.week}</h3><div class="strip">${strip}</div>${goal}</section>
     <section><h3 class="sec">${T.start.recent}</h3>${recentHtml}</section>`;
@@ -218,7 +204,7 @@ function renderPlanTab(sub) {
     const issues = dayIssues(d);
     return `<a class="day daylink${i === today ? ' today' : ''}" href="#/wochenplan/${i}">${head}
       ${issues.length ? `<ul class="issues">${issues.map((t) => `<li>${t}</li>`).join('')}</ul>` : ''}
-      <div class="tgrid">${resolveDay(d).map(({ ex }) => `<span class="tcell"><span class="illu">${illo(ex)}</span><small>${esc(ex.name)}</small></span>`).join('')}</div></a>`;
+      <p class="names">${resolveDay(d).map(({ ex }) => esc(ex.name)).join(' · ')}</p></a>`;
   }).join('');
 
   view.innerHTML = `
@@ -247,7 +233,7 @@ function renderDayEdit(i) {
     const ex = EX[id], also = otherDays(id, i);
     return `<li class="editrow">
       <button class="exrow" data-act="replace" data-i="${i}" data-n="${n}">
-        <span class="num">${n + 1}</span><span class="illu thumb">${illo(ex)}</span>
+        <span class="num">${n + 1}</span>
         <span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${GROUPS[ex.group]}</small>
           ${also.length ? `<small class="sub">${T.plan.alsoOn(also.map((j) => T.daysShort[j]).join(', '))}</small>` : ''}
           ${available(ex) ? '' : `<small class="sub">${T.plan.noEquipNow}</small>`}
@@ -352,7 +338,7 @@ function renderProgress() {
 
   const loadRow = (e) => {
     const best = bestLoad(e.id), n = (loads[e.id] || []).length;
-    return `<li><button class="exrow" data-act="ex" data-id="${e.id}"><span class="illu thumb">${illo(e)}</span>
+    return `<li><button class="exrow" data-act="ex" data-id="${e.id}">
       <span class="exrow-text"><strong>${esc(e.name)}</strong><small>${best ? `${T.load.best}: ${fmtLoad(best)} · ${T.prog.entries(n)}` : T.prog.noEntry}</small></span></button></li>`;
   };
   const weighted = EXERCISES.filter((e) => loadKind(e));
@@ -380,6 +366,7 @@ function renderProgress() {
 // TAB PROFIL
 // =====================================================================
 function renderProfile() {
+  const lvl = levelOf();
   const goalToggles = Object.entries(T.goals).map(([k, l]) => toggle(`data-chg="goal" data-k="${k}"`, profile.goals[k], l)).join('');
   view.innerHTML = `
     <section class="panel"><h3>${T.profile.personal}</h3>
@@ -393,13 +380,17 @@ function renderProfile() {
         `<option value="${n}"${n === profile.weekGoal ? ' selected' : ''}>${T.profile.daysPerWeek(n)}</option>`).join('')}</select></label></section>
     <section class="panel"><h3>${T.profile.equipment}</h3><p class="muted small">${T.profile.equipHint}</p>
       ${Object.entries(EQUIPMENT).map(([k, l]) => toggle(`data-chg="equip" data-k="${k}"`, settings.equipment[k] !== false, Illu.icon(k) + l)).join('')}</section>
+    <section class="panel"><h3>${T.level.title}</h3><p class="muted small">${T.level.hint}</p>
+      <div class="chips">${Object.keys(LEVELS).map((k) =>
+        `<button class="chip${lvl === k ? ' on' : ''}" data-act="level" data-v="${k}">${T.level.names[k]}</button>`).join('')}</div>
+      <p class="muted small">${lvl ? '' : `${T.level.custom}: `}${T.level.sum(settings)}</p></section>
     <section class="panel"><h3>${T.profile.sound}</h3>
       ${toggle('data-chg="flag" data-k="sound"', settings.sound, T.profile.beeps)}
       ${toggle('data-chg="flag" data-k="voice"', settings.voice, T.profile.voice)}
-      ${toggle('data-chg="flag" data-k="beat"', settings.beat, T.profile.beat)}
-      ${settings.beat ? numInput('bpm', T.profile.bpm, 80, 180, '') : ''}
       ${toggle('data-chg="flag" data-k="mixMusic"', settings.mixMusic, T.profile.mixMusic)}
       <p class="muted small">${T.profile.musicHint}</p>
+      <button class="btn" data-act="sound-test">${T.profile.soundTest}</button>
+      <p class="muted small" id="sound-info"></p>
       ${toggle('data-chg="flag" data-k="keepAwake"', settings.keepAwake, T.profile.keepAwake)}</section>
     <details class="panel"><summary>${T.profile.timer}</summary>
       ${numInput('work', T.profile.work, 5, 120, 's')}${numInput('rest', T.profile.rest, 0, 120, 's')}
