@@ -212,10 +212,11 @@ function generateDay(used) {
     const ok = EXERCISES.filter((e) => available(e) && category(e.group) === cat);
     return shuffle(ok.length ? ok : EXERCISES.filter((e) => category(e.group) === cat));
   };
-  // Erst neue Übungen der Woche, dann Wiederholung aus anderen Tagen – nie doppelt am selben Tag
+  // Erst neue Übungen der Woche (notfalls aus einer anderen Gruppe), dann Wiederholung aus anderen Tagen – nie doppelt am selben Tag
   const take = (cats) => {
-    for (const test of [(e) => !used.has(e.id), (e) => !today.has(e.id)]) {
-      for (const cat of cats) {
+    const others = ['oben', 'arme', 'bauch'].filter((c) => !cats.includes(c));
+    for (const [test, order] of [[(e) => !used.has(e.id), [...cats, ...others]], [(e) => !today.has(e.id), cats]]) {
+      for (const cat of order) {
         const hit = pool(cat).find(test);
         if (hit) { used.add(hit.id); today.add(hit.id); return hit; }
       }
@@ -317,10 +318,14 @@ function switchPlan(id) {
 }
 
 // ---------- Dialoge (Übungsdetails, Verlauf, Bereich) ----------
+let sheetFigStop = null;
 function showSheet(html) {
+  sheetFigStop?.();
+  sheetFigStop = null;
   $('#sheet-body').innerHTML = html;
   if (!$('#sheet').open) $('#sheet').showModal();
 }
+$('#sheet').addEventListener('close', () => { sheetFigStop?.(); sheetFigStop = null; });
 const closeDialogs = () => document.querySelectorAll('dialog[open]').forEach((d) => d.close());
 
 /** Kleiner Verlauf der Einträge (Linie), bei weniger als 2 Einträgen nur der Wert. */
@@ -350,8 +355,10 @@ function loadForm(ex) {
 function openSheet(id) {
   const ex = EX[id];
   showSheet(`<h2>${esc(ex.name)}</h2><p class="muted">${groupName(ex.group)}</p>
+    <div id="sheet-fig" class="sheet-fig"></div>
     <div class="equip-list">${equipChips(ex)}</div><p>${esc(ex.desc)}</p>
     ${ex.tip ? `<p class="tip">${esc(ex.tip)}</p>` : ''}${loadForm(ex)}`);
+  sheetFigStop = Fig.show($('#sheet-fig'), id, ex.name);
 }
 
 function openLog(i) {
@@ -657,6 +664,8 @@ function showPhase() {
     wo('name').textContent = ex.name;
     wo('desc').textContent = ex.desc.split('. ')[0].replace(/\.$/, '') + '.'; // nur der erste Satz
     wo('equip').innerHTML = equipChips(ex);
+    W.figStop?.();
+    W.figStop = Fig.show(wo('fig'), ex.id, ex.name);
   }
 }
 
@@ -789,6 +798,7 @@ function finish() {
 function closeWorkout() {
   clearInterval(W.timer);
   W.running = false;
+  W.figStop?.();
   Sound.release();
   releaseWakeLock();
   if ('speechSynthesis' in window) speechSynthesis.cancel();

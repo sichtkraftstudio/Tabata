@@ -6,7 +6,7 @@
 importScripts('version.js');
 const CACHE = 'tabata-v' + VERSION;
 const ASSETS = [
-  './', 'index.html', 'version.js', 'style.css', 'texts.js', 'app.js', 'views.js', 'exercises.js', 'illustrations.js', 'manifest.webmanifest',
+  './', 'index.html', 'version.js', 'style.css', 'texts.js', 'app.js', 'views.js', 'exercises.js', 'illustrations.js', 'poses.js', 'figure.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

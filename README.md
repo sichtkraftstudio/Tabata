@@ -9,8 +9,9 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 | `texts.js` | Alle deutschen Texte an einer Stelle |
 | `views.js` | Die fünf Tabs: Start, Training, Wochenplan, Fortschritt, Profil |
 | `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
-| `exercises.js` | Übungsdatenbank (39 Übungen), Equipment, feste Abläufe für Laufen und Dehnen, Standard-Wochenplan |
+| `exercises.js` | Übungsdatenbank (63 Übungen), Equipment, feste Abläufe für Laufen und Dehnen, Standard-Wochenplan |
 | `illustrations.js` | Equipment-Icons |
+| `figure.js`, `poses.js` | Animierte Figuren zu jeder Übung (Start- und Endposition, Seiten- oder Vorderansicht) |
 | `version.js` | App-Versionsnummer (Anzeige im Profil, Cache-Name) |
 | `service-worker.js` | Offline-Cache |
 | `manifest.webmanifest`, `icons/` | App-Name, Farben, Icons für den Home-Bildschirm |
@@ -57,6 +58,8 @@ Tipps:
 ## Anpassen
 
 **Übungen ändern oder ergänzen:** in `exercises.js` ein Objekt im Array `EXERCISES` bearbeiten oder hinzufügen. Die Felder sind oben in der Datei erklärt.
+
+**Übungsfiguren:** In `poses.js` hat jede Übung (Schlüssel = Übungs-ID) eine Start-Pose `a` und eine End-Pose `b`. Winkel in Grad (0 unten, 90 vorn, 180 oben), Arme und Beine entweder per Winkel (`fk`) oder per Ziel wie „Hand am Boden" (`ik`). Mit `mat`, `chair`, `db` und `band` kommen Matte, Stuhl, Hanteln und Theraband ins Bild, `view:'front'` zeigt die Vorderansicht. Neue Übung in `exercises.js` = neuer Eintrag in `poses.js`, sonst erscheint keine Figur. Bei „Bewegung reduzieren" im iPhone zeigt die App Start und Ende nebeneinander statt der Animation.
 
 **Trainingsarten:** Jeder Trainingstag hat eine Art (`mode` im Plan, Standard Tabata): *Tabata*, *Kraft* (Sätze mit Wiederholungen, „Satz fertig" per Tipp), *Laufen* (Lauf-/Gehintervalle) und *Dehnen* (acht Dehnübungen). Sätze, Wiederholungen und Intervalle folgen der Schwierigkeit im Profil (`KRAFT`, `LAUF` in `app.js`). Laufen und Dehnen sind feste Abläufe (`RUN`, `STRETCHES` in `exercises.js`). Die Art stellst du pro Tag im Wochenplan ein oder lässt die Einrichtung die Woche mischen.
 

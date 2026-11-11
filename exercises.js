@@ -200,6 +200,116 @@ const EXERCISES = [
     desc: 'Rückenlage, Arme seitlich, Beine senkrecht nach oben. Beine geschlossen langsam zu einer Seite senken, zurück, andere Seite.',
     tip: 'Ansicht von oben. Die Schultern bleiben am Boden.',
   },
+
+  // ---------- Weitere Übungen (damit sich in der Woche nichts wiederholt) ----------
+  // Brust
+  {
+    id: 'schraegLiegestuetze', name: 'Liegestütze erhöht am Stuhl', group: 'brust', equipment: ['stuhl'],
+    desc: 'Hände auf die Stuhlsitzfläche, Körper gerade von Kopf bis Ferse. Brust zur Stuhlkante senken und wieder wegdrücken.',
+    tip: 'Stuhl gegen eine Wand stellen, damit er nicht wegrutscht.',
+  },
+  {
+    id: 'fliegenKurzhanteln', name: 'Fliegende liegend', group: 'brust', equipment: ['matte', 'kurzhanteln'],
+    desc: 'Rückenlage, Arme mit Hanteln über der Brust, Ellbogen leicht gebeugt. Arme weit öffnen und vor der Brust wieder zusammenführen.',
+  },
+  {
+    id: 'pulloverHantel', name: 'Pullover mit Hantel', group: 'brust', equipment: ['matte', 'dumbbell'],
+    desc: 'Rückenlage, Hantel mit beiden Händen über der Brust. Arme leicht gebeugt hinter den Kopf senken und wieder über die Brust heben.',
+  },
+  {
+    id: 'weiteLiegestuetze', name: 'Weite Liegestütze', group: 'brust', equipment: ['matte'],
+    desc: 'Hände deutlich breiter als die Schultern, Körper gerade. Brust zum Boden senken und kraftvoll wieder hochdrücken.',
+  },
+  {
+    id: 'hantelPresseEng', name: 'Enges Brustdrücken', group: 'brust', equipment: ['matte', 'kurzhanteln'],
+    desc: 'Rückenlage, Hanteln eng zusammen über der Brust, Ellbogen nah am Körper. Hanteln zur Brust senken und wieder nach oben drücken.',
+  },
+  // Rücken
+  {
+    id: 'bandPullApart', name: 'Band auseinanderziehen', group: 'ruecken', equipment: ['bandKurz'],
+    desc: 'Aufrecht stehen, Band mit gestreckten Armen auf Brusthöhe halten. Band auseinanderziehen, bis die Schulterblätter zusammenkommen.',
+    tip: 'Schultern bleiben unten, nicht zu den Ohren ziehen.',
+  },
+  {
+    id: 'rudernAufBand', name: 'Rudern im Stand mit Theraband', group: 'ruecken', equipment: ['bandLang'],
+    desc: 'Hüftbreit auf das Band stellen, Knie leicht gebeugt, Oberkörper vorneigen. Enden zum Bauch ziehen, Ellbogen eng am Körper.',
+  },
+  {
+    id: 'kreuzhebenRumaenisch', name: 'Rumänisches Kreuzheben', group: 'ruecken', equipment: ['kurzhanteln'],
+    desc: 'Hanteln vor den Oberschenkeln, Knie leicht gebeugt. Hüfte nach hinten schieben, Hanteln an den Beinen entlang senken und aufrichten.',
+    tip: 'Rücken bleibt die ganze Zeit gerade.',
+  },
+  {
+    id: 'birdDog', name: 'Vierfüßler Arm-Bein-Heben', group: 'ruecken', equipment: ['matte'],
+    desc: 'Vierfüßlerstand, Rücken gerade. Gegenüberliegenden Arm und Bein strecken, kurz halten und im Wechsel die Seite tauschen.',
+  },
+  {
+    id: 'rudernBauchlage', name: 'Rudern in Bauchlage', group: 'ruecken', equipment: ['matte', 'kurzhanteln'],
+    desc: 'Auf dem Bauch liegen, Oberkörper leicht angehoben, Hanteln unter den Schultern. Ellbogen nach hinten ziehen, Schulterblätter zusammen.',
+  },
+  {
+    id: 'yHeben', name: 'Y-Heben in Bauchlage', group: 'ruecken', equipment: ['matte'],
+    desc: 'Auf dem Bauch liegen, Arme als Y schräg nach vorn gestreckt. Arme und Brust leicht vom Boden heben und langsam senken.',
+  },
+  // Schultern
+  {
+    id: 'frontheben', name: 'Frontheben', group: 'schultern', equipment: ['kurzhanteln'],
+    desc: 'Aufrecht stehen, Hanteln vor den Oberschenkeln. Arme gestreckt bis auf Schulterhöhe nach vorn heben und langsam senken.',
+  },
+  {
+    id: 'arnoldPress', name: 'Arnold Press', group: 'schultern', equipment: ['kurzhanteln'],
+    desc: 'Hanteln vor der Brust, Handflächen zum Gesicht. Beim Hochdrücken die Hände nach außen drehen, oben strecken und zurückführen.',
+  },
+  {
+    id: 'seithebenBand', name: 'Seitheben mit Theraband', group: 'schultern', equipment: ['bandLang'],
+    desc: 'Auf das Band stellen, Enden in den Händen. Arme leicht gebeugt seitlich bis auf Schulterhöhe heben und kontrolliert senken.',
+  },
+  {
+    id: 'schulterdrueckenBand', name: 'Schulterdrücken mit Theraband', group: 'schultern', equipment: ['bandLang'],
+    desc: 'Auf das Band stellen, Hände auf Schulterhöhe. Arme nach oben strecken und langsam wieder auf Schulterhöhe senken.',
+  },
+  {
+    id: 'pikeLiegestuetze', name: 'Pike Liegestütze', group: 'schultern', equipment: ['matte'],
+    desc: 'Hüfte hoch, Körper bildet ein umgekehrtes V. Kopf zwischen den Armen Richtung Boden beugen und wieder hochdrücken.',
+    tip: 'Leichter: Knie leicht beugen.',
+  },
+  {
+    id: 'shrugs', name: 'Schulterheben', group: 'schultern', equipment: ['kurzhanteln'],
+    desc: 'Aufrecht stehen, Hanteln neben dem Körper. Schultern gerade nach oben zu den Ohren ziehen, kurz halten und senken.',
+  },
+  // Arme
+  {
+    id: 'trizepsUeberkopfBand', name: 'Trizeps Überkopf mit kurzem Band', group: 'arme', equipment: ['bandKurz'],
+    desc: 'Ein Bandende unter dem Fuß, anderes Ende mit beiden Händen hinter dem Kopf. Ellbogen nach oben strecken und wieder beugen.',
+  },
+  {
+    id: 'zottmanCurls', name: 'Zottman Curls', group: 'arme', equipment: ['kurzhanteln'],
+    desc: 'Hanteln mit Handflächen nach vorn zur Schulter beugen. Oben die Hände drehen und mit Blick nach unten langsam absenken.',
+  },
+  {
+    id: 'schaedelbrecher', name: 'Trizeps Stirndrücken', group: 'arme', equipment: ['matte', 'kurzhanteln'],
+    desc: 'Rückenlage, Hanteln über der Brust. Nur die Unterarme zur Stirn beugen und die Arme wieder strecken.',
+    tip: 'Die Oberarme bleiben senkrecht und ruhig.',
+  },
+  {
+    id: 'hammerCurlsBand', name: 'Hammer Curls mit Theraband', group: 'arme', equipment: ['bandLang'],
+    desc: 'Auf das Band stellen, Handflächen zeigen zueinander. Ellbogen am Körper, Hände zur Schulter beugen und langsam senken.',
+  },
+  // Bauch
+  {
+    id: 'flutterKicks', name: 'Flutter Kicks', group: 'bauch', equipment: ['matte'],
+    desc: 'Rückenlage, Beine gestreckt knapp über dem Boden. Beine im Wechsel schnell und klein auf und ab bewegen.',
+    tip: 'Der untere Rücken bleibt am Boden.',
+  },
+  {
+    id: 'holzhackerBand', name: 'Holzhacker mit Theraband', group: 'bauch', equipment: ['bandLang'],
+    desc: 'Band hoch an einer Tür befestigen, seitlich stehen. Band mit beiden Händen diagonal nach unten ziehen, Oberkörper dreht mit.',
+  },
+  {
+    id: 'plankStuhl', name: 'Plank am Stuhl', group: 'bauch', equipment: ['stuhl'],
+    desc: 'Unterarme auf die Stuhlsitzfläche, Körper gerade von Kopf bis Ferse. Bauch und Po fest anspannen und halten.',
+    tip: 'Leichter als der Plank am Boden.',
+  },
 ];
 
 /* Feste Abläufe für Laufen und Dehnen: nicht in der Übungsbibliothek, aber im Verlauf auffindbar (EX in app.js).

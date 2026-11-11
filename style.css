@@ -409,3 +409,24 @@ details.panel[open] { padding-bottom: 12px; }
 .spark { display: block; width: 100%; height: 60px; }
 .spark polyline { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .spark circle { fill: var(--accent); }
+
+/* Übungsfiguren (figure.js): Seitenansicht, Bewegung zwischen Start und Ende */
+.fig { display: block; width: 100%; height: auto; }
+.f-floor { stroke: var(--line); stroke-width: 2; stroke-linecap: round; }
+.f-mat { fill: #3a4558; }
+.f-prop { stroke: #3a4558; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.f-limb, .f-foot, .f-torso, .f-sh { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.f-limb { stroke: var(--accent); stroke-width: 9; }
+.f-limb.leg { stroke-width: 11; }
+.f-limb.far, .f-foot.far { stroke: #14867b; }
+.f-foot { stroke: var(--accent); stroke-width: 8; }
+.f-torso { stroke: #e8eef5; stroke-width: 17; }
+.f-sh { stroke: #e8eef5; stroke-width: 15; }
+.f-head { fill: #f1d3bd; }
+.f-db { fill: var(--accent-2); stroke: #7c2d12; stroke-width: 1.5; }
+.f-band { stroke: #f472b6; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fig-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.wo-fig { width: min(280px, 70vw, 26dvh); }
+.wo-fig:empty, .sheet-fig:empty { display: none; }
+.sheet-fig { margin: 4px 0 12px; background: var(--surface-2); border-radius: 14px; }
+@media (orientation: landscape) and (max-height: 520px) { .wo-fig { display: none; } }
