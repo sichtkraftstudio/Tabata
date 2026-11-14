@@ -9,7 +9,7 @@ Persönlicher Tabata-Plan für Oberkörper und Bauch. Läuft offline, ohne Backe
 | `texts.js` | Alle deutschen Texte an einer Stelle |
 | `views.js` | Die fünf Tabs: Start, Training, Wochenplan, Fortschritt, Profil |
 | `app.js` | Speicher mit Migration, Router, Plan-Logik, Aktionen, Timer |
-| `exercises.js` | Übungsdatenbank (63 Übungen), Equipment, feste Abläufe für Laufen und Dehnen, Standard-Wochenplan |
+| `exercises.js` | Übungsdatenbank (63 Übungen plus 7 Rückenübungen für das Rückenprogramm), Equipment, feste Abläufe für Laufen und Dehnen, Standard-Wochenplan |
 | `illustrations.js` | Equipment-Icons |
 | `figure.js`, `poses.js` | Animierte Figuren zu jeder Übung (Start- und Endposition, Seiten- oder Vorderansicht) |
 | `version.js` | App-Versionsnummer (Anzeige im Profil, Cache-Name) |
@@ -62,6 +62,8 @@ Tipps:
 **Übungsfiguren:** In `poses.js` hat jede Übung (Schlüssel = Übungs-ID) eine Start-Pose `a` und eine End-Pose `b`. Winkel in Grad (0 unten, 90 vorn, 180 oben), Arme und Beine entweder per Winkel (`fk`) oder per Ziel wie „Hand am Boden" (`ik`). Mit `mat`, `chair`, `db` und `band` kommen Matte, Stuhl, Hanteln und Theraband ins Bild, `view:'front'` zeigt die Vorderansicht. Neue Übung in `exercises.js` = neuer Eintrag in `poses.js`, sonst erscheint keine Figur. Bei „Bewegung reduzieren" im iPhone zeigt die App Start und Ende nebeneinander statt der Animation.
 
 **Trainingsarten:** Jeder Trainingstag hat eine Art (`mode` im Plan, Standard Tabata): *Tabata*, *Kraft* (Sätze mit Wiederholungen, „Satz fertig" per Tipp), *Laufen* (Lauf-/Gehintervalle) und *Dehnen* (acht Dehnübungen). Sätze, Wiederholungen und Intervalle folgen der Schwierigkeit im Profil (`KRAFT`, `LAUF` in `app.js`). Laufen und Dehnen sind feste Abläufe (`RUN`, `STRETCHES` in `exercises.js`). Die Art stellst du pro Tag im Wochenplan ein oder lässt die Einrichtung die Woche mischen.
+
+**Rückenprogramm (3 Wochen):** *Training → Pläne → Rückenprogramm starten* legt drei Pläne „Rücken · Woche 1 bis 3" an: gleiche Trainings- und Ruhetage wie dein aktueller Plan, pro Trainingstag 3 Übungen für den unteren Rücken im Modus Kraft. Der Plan wechselt montags automatisch (Start am Montag der laufenden Woche, wenn heute Mo bis Mi ist, sonst am nächsten Montag); nach Woche 3 kommt dein vorheriger Plan zurück. Die Übungen stehen in `BACK` und `BACK_PROGRAM` (`exercises.js`), der Wechsel in `startProgram` und `applyProgram` (`app.js`, gespeichert unter `tabata.program`).
 
 **Wochenplan:** Standardplan in `DEFAULT_PLAN` (`exercises.js`). In der App kannst du unter *Einstellungen* Trainings- und Ruhetage tauschen, den Plan neu mischen oder den Standardplan wiederherstellen.
 

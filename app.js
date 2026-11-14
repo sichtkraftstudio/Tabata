@@ -19,8 +19,8 @@ const LEVELS = {
 const levelOf = () => Object.keys(LEVELS).find((k) => Object.keys(LEVELS[k]).every((f) => settings[f] === LEVELS[k][f]));
 const DEFAULT_PROFILE ={ name: 'Dirk', weight: '', goals: { oberkoerper: true, bauch: true }, weekGoal: 5 };
 
-const EX = Object.fromEntries([...EXERCISES, RUN, ...STRETCHES].map((e) => [e.id, e])); // auch feste Abläufe, damit der Verlauf sie findet
-const groupName = (g) => GROUPS[g] || T.mode[g]?.name || '';
+const EX = Object.fromEntries([...EXERCISES, ...BACK, RUN, ...STRETCHES].map((e) => [e.id, e])); // auch Rückenprogramm und feste Abläufe, damit Plan und Verlauf sie finden
+const groupName = (g) => GROUPS[g] || (g === 'unten' ? GROUP_BACK : T.mode[g]?.name) || '';
 const $ = (sel) => document.querySelector(sel);
 const view = $('#view');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -274,7 +274,7 @@ function setDayType(i, type) {
 function replaceExercise(i, pos, id) {
   const d = plan[i];
   d.exercises[pos] = id;
-  d.focus = focusOf(d.exercises);
+  if (!d.prog) d.focus = focusOf(d.exercises);
   savePlan();
 }
 function moveExercise(i, pos, dir) {
@@ -287,7 +287,7 @@ function swapDays(i, j) { [plan[i], plan[j]] = [plan[j], plan[i]]; savePlan(); }
 
 /** Regel: je nach Ziel mindestens 2 Arm- und 2 Bauchübungen pro Trainingstag. */
 function dayIssues(day) {
-  if (!hasList(day)) return [];
+  if (!hasList(day) || day.prog) return []; // Rückenprogramm hat eigene Regeln (3 Übungen)
   const n = (g) => day.exercises.filter((id) => EX[id]?.group === g).length, out = [];
   if (profile.goals.oberkoerper && n('arme') < 2) out.push(T.rules.fewArms(n('arme')));
   if (profile.goals.bauch && n('bauch') < 2) out.push(T.rules.fewAbs(n('bauch')));
@@ -296,7 +296,7 @@ function dayIssues(day) {
 /** Übungen, die an mehreren Trainingstagen vorkommen: [[id, [Tagesindizes]], …] */
 function duplicates() {
   const seen = {};
-  plan.forEach((d, i) => hasList(d) && new Set(d.exercises).forEach((id) => (seen[id] ??= []).push(i)));
+  plan.forEach((d, i) => hasList(d) && !d.prog && new Set(d.exercises).forEach((id) => (seen[id] ??= []).push(i)));
   return Object.entries(seen).filter(([, days]) => days.length > 1);
 }
 
@@ -315,6 +315,46 @@ function switchPlan(id) {
   activePlan = id;
   store.set('activePlan', id);
   store.set('plan', plan);
+}
+
+// ---------- Rückenprogramm: 3 Wochen, 3 Übungen pro Trainingstag ----------
+// Legt 3 Pläne an (Trainings-/Ruhetage wie im aktuellen Plan) und wechselt montags automatisch.
+// Gespeichert in 'program': { start: Montag der Woche 1, ids: [3 Plan-IDs], back: Plan davor, applied: zuletzt gesetzte Woche }
+const getProgram = () => store.get('program', null);
+function startProgram() {
+  savePlan(); // aktuellen Plan sichern, damit er nach Woche 3 unverändert zurückkommt
+  const today = new Date(), mon = weekday(today) <= 2 ? addDays(today, -weekday(today)) : addDays(today, 7 - weekday(today));
+  const ids = BACK_PROGRAM.map((triples, w) => {
+    let t = 0;
+    const days = plan.map((d) => (d.type === 'training'
+      ? { type: 'training', focus: GROUP_BACK, mode: 'kraft', prog: 'ruecken', exercises: [...triples[t++ % triples.length]] }
+      : { ...structuredClone(d), exercises: [] }));
+    const p = { id: 'p' + Date.now().toString(36) + w, name: T.plans.backName(w + 1), days };
+    plans.push(p);
+    return p.id;
+  });
+  store.set('plans', plans);
+  store.set('program', { start: dayKey(mon), ids, back: activePlan, applied: -1 });
+  applyProgram();
+}
+function applyProgram() {
+  const g = getProgram();
+  if (!g) return;
+  const idx = Math.round((parseKey(weekKey(new Date())) - parseKey(g.start)) / 6048e5);
+  if (idx < 0) return; // startet erst am nächsten Montag
+  if (idx < g.ids.length) {
+    if (g.applied === idx) return;
+    switchPlan(g.ids[idx]);
+    store.set('program', { ...g, applied: idx });
+  } else stopProgram(true);
+}
+/** Beendet das Programm: Wochenpläne bleiben gespeichert, der vorherige Plan wird wieder aktiv. */
+function stopProgram(auto) {
+  const g = getProgram();
+  if (!g) return;
+  if (activePlan !== g.back && plans.some((p) => p.id === g.back)) switchPlan(g.back);
+  store.set('program', null);
+  if (!auto) render();
 }
 
 // ---------- Dialoge (Übungsdetails, Verlauf, Bereich) ----------
@@ -454,6 +494,8 @@ const ACT = {
     if (name) { savePlanAs(name.slice(0, 40)); render(); }
   },
   'plan-switch': (el) => { switchPlan(el.dataset.id); render(); },
+  'back-start': () => { if (confirm(T.confirm.backProgram)) { startProgram(); render(); } },
+  'back-stop': () => { if (confirm(T.confirm.backStop)) stopProgram(); },
   'plan-rename': (el) => {
     const p = plans.find((x) => x.id === el.dataset.id), name = prompt(T.prompt.rename, p.name)?.trim();
     if (name) { p.name = name.slice(0, 40); store.set('plans', plans); render(); }
@@ -827,10 +869,12 @@ wo('close').addEventListener('click', abortWorkout);
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && W.running) { tick(); requestWakeLock(); }
+  if (document.visibilityState === 'visible' && !W.running) { const was = activePlan; applyProgram(); if (was !== activePlan) render(); } // neue Woche, App war im Hintergrund
 });
 
 // ---------- Start ----------
 window.addEventListener('hashchange', route);
+applyProgram();
 render(true);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

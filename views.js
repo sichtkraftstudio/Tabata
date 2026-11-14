@@ -59,7 +59,7 @@ const exMatches = (s, e) => (s.group === 'alle' || e.group === s.group) && (s.eq
   && e.name.toLowerCase().includes(s.q.trim().toLowerCase());
 const exCard = (e, act, note = '', disabled = false) => `<button class="card-ex${available(e) ? '' : ' na'}" data-act="${act}" data-id="${e.id}"${disabled ? ' disabled' : ''}>
   <strong>${esc(e.name)}</strong>
-  <small class="muted">${GROUPS[e.group]}</small>
+  <small class="muted">${groupName(e.group)}</small>
   <span class="icons">${e.equipment.map((k) => Illu.icon(k)).join('')}</span>${note ? `<small class="note">${note}</small>` : ''}</button>`;
 
 /** Workout-Karte (Tagesworkout oder Kurzeinheit). */
@@ -166,6 +166,16 @@ const libResults = () => {
 };
 const trainLibrary = () => `${searchBox(lib, 'lib')}${filterChips(lib, 'lib-filter')}<div id="lib-results">${libResults()}</div>`;
 
+function backPanel() {
+  const g = getProgram();
+  const week = g ? Math.round((parseKey(weekKey(new Date())) - parseKey(g.start)) / 6048e5) : 0;
+  const from = g ? parseKey(g.start).toLocaleDateString('de-DE', { day: 'numeric', month: 'long' }) : '';
+  return `<section class="panel"><h3>${T.plans.backTitle}</h3>
+    <p class="muted small">${g ? T.plans.backRunning(from, week) : T.plans.backHint}</p>
+    <div class="stack"><button class="btn${g ? '' : ' primary'}" data-act="${g ? 'back-stop' : 'back-start'}">${g ? T.plans.backStop : T.plans.backStart}</button>
+      <p class="muted small">${T.plans.backSafety}</p></div></section>`;
+}
+
 function trainPlans() {
   const rows = plans.map((p) => {
     const active = p.id === activePlan, n = p.days.filter((d) => d.type === 'training').length;
@@ -179,8 +189,9 @@ function trainPlans() {
   return `<section class="panel"><h3>${T.plans.current}: ${esc(planName())}</h3>
       <ul class="plain">${overview}</ul>
       <div class="stack"><a class="btn" href="#/wochenplan">${T.plans.edit}</a>
-        <button class="btn" data-act="shuffle">${T.plans.shuffle}</button>
-        <p class="muted small">${T.plans.shuffleHint}</p></div></section>
+        ${getProgram() ? '' : `<button class="btn" data-act="shuffle">${T.plans.shuffle}</button>
+        <p class="muted small">${T.plans.shuffleHint}</p>`}</div></section>
+    ${backPanel()}
     <section class="panel"><h3>${T.plans.saved}</h3><ul class="plans">${rows}</ul>
       <div class="stack"><button class="btn primary" data-act="plan-save">${T.plans.saveAs}</button></div></section>`;
 }
@@ -236,7 +247,7 @@ function renderDayEdit(i) {
     return `<li class="editrow">
       <button class="exrow" data-act="replace" data-i="${i}" data-n="${n}">
         <span class="num">${n + 1}</span>
-        <span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${GROUPS[ex.group]}</small>
+        <span class="exrow-text"><strong>${esc(ex.name)}</strong><small>${groupName(ex.group)}</small>
           ${also.length ? `<small class="sub">${T.plan.alsoOn(also.map((j) => T.daysShort[j]).join(', '))}</small>` : ''}
           ${available(ex) ? '' : `<small class="sub">${T.plan.noEquipNow}</small>`}
           <small class="act">${T.plan.replace}</small></span></button>

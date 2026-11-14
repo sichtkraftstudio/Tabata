@@ -20,6 +20,11 @@ const POSES = (() => {
   const prone = (o = {}) => ({ hip: [96, 126], torso: 90, head: 90, leg: { fk: [270, 270] }, foot: 270, arm: { fk: [90, 90] }, ...o });
   // Vierfüßler
   const quad = (o = {}) => ({ hip: [96, 103], torso: 80, head: 75, leg: { fk: [0, 270] }, foot: 270, arm: { ik: [136, 138], bend: 1 }, ...o });
+  // Brücke: Füße am Boden, Schultern liegen; up = Becken angehoben
+  const bridge = (up, o = {}) => ({
+    hip: up ? [92, 108] : [92, 127], torso: up ? 116 : 90, head: up ? 100 : 88,
+    leg: { ik: [52, 132], bend: 1 }, foot: 90, arm: { fk: [270, 270] }, ...o,
+  });
   // Sitzen auf dem Boden, Beine gestreckt
   const sit = (o = {}) => ({ hip: [86, 127], torso: 0, leg: { fk: [90, 90] }, foot: 180, arm: { fk: [0, 0] }, ...o });
 
@@ -222,6 +227,35 @@ const POSES = (() => {
     lauf: {
       a: { hip: [112, 80], torso: 10, leg: { fk: [100, 10] }, legF: { fk: [-30, -75] }, arm: { fk: [-45, 25] }, armF: { fk: [55, 120] }, foot: 90 },
       b: { hip: [112, 80], torso: 10, leg: { fk: [-30, -75] }, legF: { fk: [100, 10] }, arm: { fk: [55, 120] }, armF: { fk: [-45, 25] }, foot: 90 },
+    },
+
+    // ---------- Unterer Rücken (BACK in exercises.js) ----------
+    beckenkippen: { mat: true, a: bridge(false), b: bridge(false, { hip: [92, 123], torso: 98, head: 92 }) },
+    beckenheben: { mat: true, a: bridge(false), b: bridge(true) },
+    beckenhebenMarsch: {
+      mat: true,
+      a: bridge(true, { leg: { fk: [261.5, 340.7] }, legF: { ik: [52, 132], bend: 1 } }),
+      b: bridge(true, { leg: { fk: [190, 245] }, legF: { ik: [52, 132], bend: 1 } }),
+    },
+    beckenhebenEinbein: {
+      mat: true,
+      a: bridge(true, { legF: { fk: [261.5, 340.7] } }),
+      b: bridge(true, { legF: { fk: [244, 244] } }),
+    },
+    hueftstrecken: {
+      mat: true,
+      a: quad({ leg: { fk: [0, -90] }, legF: { fk: [0, -90] } }),
+      b: quad({ leg: { fk: [-95, -180] }, legF: { fk: [0, -90] } }),
+    },
+    schwimmer: {
+      mat: true,
+      a: prone({ armF: { fk: [90, 90] }, legF: { fk: [270, 270] } }),
+      b: prone({ torso: 86, head: 80, arm: { fk: [125, 125] }, armF: { fk: [90, 90] }, legF: { fk: [240, 240] } }),
+    },
+    goodMorningBand: {
+      band: 'foot',
+      a: S({ ik: 'head', bend: -1 }),
+      b: hinge(62, { ik: 'head', bend: -1 }),
     },
 
     // ---------- Dehnen ----------

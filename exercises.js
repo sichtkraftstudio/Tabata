@@ -331,6 +331,73 @@ const STRETCHES = [
 ].map((e) => ({ group: 'dehnen', equipment: [], ...e }));
 const ROUTINES = { lauf: [RUN], dehnen: STRETCHES };
 
+/* Rückenprogramm (unterer Rücken): eigene Übungen, bewusst nicht in EXERCISES, damit „Plan mischen" und die
+ * Arm-/Bauch-Regeln sie nicht einbeziehen. Dazu kommen vorhandene Übungen (birdDog, deadBug, superman, …). */
+const GROUP_BACK = 'Unterer Rücken';
+const BACK = [
+  {
+    id: 'beckenkippen', name: 'Beckenkippen', equipment: ['matte'],
+    desc: 'Auf dem Rücken liegen, Knie gebeugt, Füße am Boden. Bauch anspannen und die Lendenwirbelsäule sanft in die Matte drücken, dann wieder lösen.',
+    tip: 'Kleine, langsame Bewegung. Die Atmung läuft ruhig weiter.',
+  },
+  {
+    id: 'beckenheben', name: 'Beckenheben (Brücke)', equipment: ['matte'],
+    desc: 'Auf dem Rücken, Füße hüftbreit aufgestellt. Becken anheben, bis Schultern, Hüfte und Knie eine Linie bilden, oben kurz halten und langsam absenken.',
+    tip: 'Po fest anspannen und nicht ins Hohlkreuz fallen.',
+  },
+  {
+    id: 'beckenhebenMarsch', name: 'Beckenheben mit Marschieren', equipment: ['matte'],
+    desc: 'Brücke halten und abwechselnd ein Knie Richtung Brust heben. Das Becken bleibt dabei ruhig auf einer Höhe.',
+    tip: 'Das Becken darf nicht zur Seite kippen.',
+  },
+  {
+    id: 'beckenhebenEinbein', name: 'Beckenheben einbeinig', equipment: ['matte'],
+    desc: 'Wie die Brücke, ein Bein gestreckt anheben. Becken gerade halten, pro Satz das Bein wechseln.',
+    tip: 'Zu schwer? Erst das normale Beckenheben machen.',
+  },
+  {
+    id: 'hueftstrecken', name: 'Hüftstrecken im Vierfüßler', equipment: ['matte'],
+    desc: 'Im Vierfüßlerstand ein Knie gebeugt nach hinten oben drücken, Fuß zur Decke. Rücken bleibt gerade, pro Satz die Seite wechseln.',
+    tip: 'Nicht ins Hohlkreuz kippen, die Bewegung kommt aus dem Po.',
+  },
+  {
+    id: 'schwimmer', name: 'Schwimmer', equipment: ['matte'],
+    desc: 'In Bauchlage Arme nach vorn, Beine gestreckt. Gegengleich einen Arm und das andere Bein leicht anheben und im Wechsel senken.',
+    tip: 'Blick zum Boden, Nacken lang. Nur so hoch, wie es angenehm ist.',
+  },
+  {
+    id: 'goodMorningBand', name: 'Good Morning mit Theraband', equipment: ['bandLang'],
+    desc: 'Auf das Band stellen, Enden über die Schultern legen. Hüfte nach hinten schieben, Rücken gerade, Oberkörper nach vorn neigen und wieder aufrichten.',
+    tip: 'Knie leicht gebeugt, die Bewegung kommt aus der Hüfte.',
+  },
+].map((e) => ({ group: 'unten', ...e }));
+
+/* 3-Wochen-Programm: je Woche fünf Tagesgruppen à 3 Übungen. Die Trainingstage des Plans bekommen sie der Reihe nach.
+ * Woche 1 Grundlagen, Woche 2 mit Brücke marschieren und Band, Woche 3 mit einbeinig und Kreuzheben. */
+const BACK_PROGRAM = [
+  [
+    ['beckenkippen', 'beckenheben', 'birdDog'],
+    ['dehnKatzeKuh', 'deadBug', 'hueftstrecken'],
+    ['beckenheben', 'schwimmer', 'birdDog'],
+    ['beckenkippen', 'deadBug', 'superman'],
+    ['dehnKatzeKuh', 'beckenheben', 'hueftstrecken'],
+  ],
+  [
+    ['beckenhebenMarsch', 'birdDog', 'deadBug'],
+    ['goodMorningBand', 'hueftstrecken', 'superman'],
+    ['beckenhebenEinbein', 'schwimmer', 'birdDog'],
+    ['beckenhebenMarsch', 'deadBug', 'superman'],
+    ['goodMorningBand', 'birdDog', 'schwimmer'],
+  ],
+  [
+    ['kreuzhebenRumaenisch', 'beckenhebenEinbein', 'birdDog'],
+    ['goodMorningBand', 'deadBug', 'schwimmer'],
+    ['kreuzhebenRumaenisch', 'hueftstrecken', 'superman'],
+    ['beckenhebenEinbein', 'beckenhebenMarsch', 'deadBug'],
+    ['goodMorningBand', 'birdDog', 'superman'],
+  ],
+];
+
 /* Wochenplan: Index 0 = Montag … 6 = Sonntag. type 'training' oder 'rest'; bei Training optional mode (siehe T.mode, Standard 'tabata'). */
 const DEFAULT_PLAN = [
   { type: 'training', focus: 'Brust & Arme', exercises: ['liegestuetze', 'bizepsCurls', 'crunches', 'trizepsDips', 'brustFliegenBand', 'plank', 'hammerCurls', 'beinhebenLiegend'] },

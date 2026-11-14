@@ -50,6 +50,13 @@ const T = {
     shuffleHint: 'Mischt alle Trainingstage neu: mindestens 2 Arm- und 2 Bauchübungen pro Tag, möglichst ohne Wiederholungen.',
     saved: 'Gespeicherte Pläne', saveAs: 'Aktuellen Plan als neuen Plan speichern',
     summary: (n) => `${n} Trainingstage`, active: 'Aktiv', use: 'Wechseln', rename: 'Umbenennen', delete: 'Löschen',
+    backTitle: 'Rückenprogramm (3 Wochen)',
+    backName: (n) => `Rücken · Woche ${n}`,
+    backHint: 'Drei Übungen pro Trainingstag für den unteren Rücken, Woche für Woche etwas fordernder. Trainings- und Ruhetage bleiben wie im aktuellen Plan.',
+    backStart: 'Rückenprogramm starten',
+    backStop: 'Rückenprogramm beenden',
+    backRunning: (from, week) => (week < 0 ? `Startet am ${from}.` : `Woche ${week + 1} von 3, gestartet am ${from}. Der Plan wechselt montags automatisch, danach kommt dein vorheriger Plan zurück.`),
+    backSafety: 'Bei Schmerzen abbrechen. Kein Ersatz für ärztlichen Rat.',
   },
 
   plan: {
@@ -184,6 +191,8 @@ const T = {
     resetProgress: 'Alle erledigten Trainings, den Verlauf und den Streak löschen?',
     resetAll: 'Wirklich ALLES zurücksetzen? Plan, Fortschritt, Profil und Einstellungen werden gelöscht.',
     deletePlan: (name) => `Plan „${name}" löschen?`,
+    backProgram: 'Rückenprogramm starten? Es werden 3 neue Pläne („Rücken · Woche 1 bis 3") angelegt. Dein aktueller Plan bleibt gespeichert und kommt danach zurück.',
+    backStop: 'Rückenprogramm beenden und zum vorherigen Plan zurückkehren? Die Wochenpläne bleiben gespeichert.',
     abort: 'Training wirklich abbrechen?',
   },
   prompt: { newPlan: 'Name für den neuen Plan:', rename: 'Neuer Name für den Plan:' },
